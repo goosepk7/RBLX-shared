@@ -16,7 +16,14 @@ local Tokens = require("../Tokens")
 
 export type Variant = "Primary" | "Secondary" | "Danger" | "Gold"
 
-export type Props = Common.BaseProps & {
+export type Props = {
+	Name: string?,
+	Disabled: boolean?,
+	Loading: boolean?,
+	LayoutOrder: number?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Parent: Instance?,
 	Title: string,
 	Variant: Variant?, -- header strip color family
 	Icon: string?, -- optional title icon

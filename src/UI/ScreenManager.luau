@@ -276,7 +276,7 @@ function ScreenManager.showModal(
 		warn(`UI.ScreenManager: refused a third modal (max {Tokens.limits.maxModals}); close one first`)
 		return nil
 	end
-	local o = opts or {}
+	local o: { DismissOnBackdrop: boolean?, OnClosed: (() -> ())? } = opts or {}
 	local handle: Modal.Handle
 	handle = Modal.new({
 		Content = content,

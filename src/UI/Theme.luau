@@ -58,7 +58,7 @@ local Theme = {}
 
 Theme.tokens = Tokens
 
-local currentGame: GameId = Tokens.defaultGame
+local currentGame: GameId = Tokens.defaultGame :: any
 local listeners: { (GameId) -> () } = {}
 
 local VARIANTS: { [Variant]: VariantColors } = {

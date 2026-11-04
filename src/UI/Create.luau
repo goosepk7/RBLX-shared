@@ -9,12 +9,11 @@ local Theme = require("./Theme")
 local Tokens = require("./Tokens")
 
 type Props = { [string]: any }
-type Children = { [any]: Instance }
 
 local Create = {}
 
 --- Create.new("Frame", { Size = ..., Name = "Card" }, { child1, Named = child2 })
-function Create.new(className: string, props: Props?, children: Children?): any
+function Create.new(className: string, props: Props?, children: any?): any
 	local inst = Instance.new(className :: any)
 	local parent: Instance? = nil
 	if props then
@@ -90,7 +89,7 @@ function Create.list(direction: "Horizontal" | "Vertical", gap: number, hAlign: 
 end
 
 --- A transparent container frame.
-function Create.group(props: Props?, children: Children?): Frame
+function Create.group(props: Props?, children: any?): Frame
 	local base: Props = {
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,

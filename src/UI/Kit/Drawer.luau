@@ -111,7 +111,7 @@ function Drawer.new(props: Props): Handle
 	end
 
 	local function layout(parent: Instance)
-		local mode = props.Mode or "Touch"
+		local mode: Layout.InputMode = props.Mode or "Touch"
 		local w, h = 844, 390
 		if parent:IsA("GuiBase2d") then
 			local size = (parent :: GuiBase2d).AbsoluteSize

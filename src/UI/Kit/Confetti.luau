@@ -21,12 +21,12 @@ Confetti.Variants = { "Burst", "Shower" } :: { Variant }
 local COLORS: { Theme.ColorName } = { "primary", "secondary", "success", "warning", "info", "gold", "danger" }
 
 --- Spawns pieces at `origin` (absolute screen px) in the ScreenGui that
---- contains `target` (pieces live outside any UIScale so pixels stay true).
+--- contains `host` (pieces live outside any UIScale so pixels stay true).
 --- Shower rains from the top edge across the screen instead.
-function Confetti.burst(target: GuiBase2d, origin: Vector2, variant: Variant?, count: number?)
-	local gui: GuiBase2d = if target:IsA("LayerCollector")
-		then target
-		else target:FindFirstAncestorWhichIsA("LayerCollector") or target
+function Confetti.burst(host: GuiBase2d, origin: Vector2, variant: Variant?, count: number?)
+	local gui: GuiBase2d = if host:IsA("LayerCollector")
+		then host
+		else host:FindFirstAncestorWhichIsA("LayerCollector") or host
 	local n = count or Tokens.motion.confettiCount
 	local duration = Tokens.motion.confettiDuration
 	local rng = Random.new()

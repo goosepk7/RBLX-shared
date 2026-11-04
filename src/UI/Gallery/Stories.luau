@@ -41,7 +41,7 @@ local function center(gui: GuiObject): GuiObject
 	return gui
 end
 
-local function variantsOf(names: { string }, build: (name: string, env: Env) -> GuiObject): { Variant }
+local function variantsOf(names: { any }, build: (name: string, env: Env) -> GuiObject): { Variant }
 	local out: { Variant } = {}
 	for _, name in names do
 		table.insert(out, {

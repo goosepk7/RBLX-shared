@@ -14,7 +14,14 @@ local Tooltip = require("./Tooltip")
 
 export type Variant = "Secondary" | "Primary" | "Gold" | "Danger"
 
-export type Props = Common.BaseProps & {
+export type Props = {
+	Name: string?,
+	Disabled: boolean?,
+	Loading: boolean?,
+	LayoutOrder: number?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Parent: Instance?,
 	Icon: string, -- image content id
 	Label: string, -- tooltip + accessibility; already localized
 	Variant: Variant?,

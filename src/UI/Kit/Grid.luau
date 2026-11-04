@@ -16,7 +16,14 @@ local Tokens = require("../Tokens")
 
 export type Variant = "Scroll" | "Static"
 
-export type Props = Common.BaseProps & {
+export type Props = {
+	Name: string?,
+	Disabled: boolean?,
+	Loading: boolean?,
+	LayoutOrder: number?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	Parent: Instance?,
 	MinCellWidth: number?,
 	CellAspect: number?, -- height / width
 	Gap: number?,
