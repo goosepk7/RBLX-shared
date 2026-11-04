@@ -15,7 +15,9 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
 
-local World = require("@shared/World")
+-- Relative, not @shared: game repos run this through the submodule, where the package's
+-- .luaurc aliases do not apply (lune resolves aliases from the entry script's config).
+local World = require("../../src/World")
 
 local Model = {}
 
