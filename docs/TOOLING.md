@@ -14,6 +14,7 @@ the submodule: `lune run Packages/RBLXShared/tools/<tool>`; they read the game's
 | `lune run tools/upload_assets --all [--dry-run]` | Upload pending and changed assets via Open Cloud, write ids back, regenerate ids. |
 | `lune run tools/resolve_decals [--studio-script \| --apply ids.json]` | Finish images left `unresolved` (Decal uploaded, Image id unknown) without re-uploading. |
 | `lune run tools/backup_profiles --universe <id> --datastore <name>` | Back up every player profile via Open Cloud (`--restore <folder> --key <key>` puts one back). See [Profile backups](#profile-backups). |
+| `python3 tools/sfx_gen.py [--check \| --list]` | Render the framework's SFX (UI and feedback sounds) to `assets/sfx/*.ogg`. Needs numpy and ffmpeg. Byte-stable: `--check` re-renders to a temp dir and fails on any difference. See [SFX](#sfx). |
 | `tools/ci/typecheck.sh` | Strict luau-lsp type check (needs `lune setup` first). |
 | `rojo build studio/netsmoke.project.json -o NetSmoke.rbxl` | The Studio smoke place for Net. CI attaches it to every run. See [Studio smoke test for Net](#studio-smoke-test-for-net). |
 
@@ -200,3 +201,26 @@ payloads the real wire changes: make `copyValue` in `src/Net/LoopbackTransport.l
 update `tests/Net/NetSmokeProbes.spec.luau`. `info` lines (an array with a hole) only record
 what Roblox did and never fail the run. `NET SMOKE  log` lines are Net's own reports; the Boom
 handler error and the kill switch warning are expected.
+
+## SFX
+
+`tools/sfx_gen.py` synthesizes every framework sound from code (layered sines, soft squares,
+filtered noise, small-bell partials) and encodes it with ffmpeg's libvorbis in bit-exact mode.
+ffmpeg still picks a random Ogg stream serial, so the script rewrites it (and each page's CRC)
+to a fixed value: the same script always produces the same bytes on the same ffmpeg build.
+
+| Name | Use | Length |
+|---|---|---|
+| `sfx_ui_click_1..4` | Button press (`ui.click`) | 0.06 s |
+| `sfx_ui_hover_1..3` | PC hover | 0.05 s |
+| `sfx_ui_open`, `sfx_ui_close` | Panel and modal in/out | 0.15 s |
+| `sfx_ui_tab`, `sfx_ui_toast` | Tab switch / input focus, toast | 0.09 s, 0.42 s |
+| `sfx_ui_pop_1..3` | Small number pops | 0.08 s |
+| `sfx_ui_success`, `sfx_ui_fail` | Kit success and fail states | 0.5 s, 0.42 s |
+| `sfx_ui_thump` | Big NumberPop (§5.3) | 0.3 s |
+| `sfx_purchase`, `sfx_win`, `sfx_checkpoint`, `sfx_unlock`, `sfx_fail` | §5.7 moments: purchase chime, win rising chime, checkpoint ding, unlock fanfare, gameplay fail thud | 0.6-1.3 s |
+
+All are `kind = "audio"`, `source = "generated"`, `sourceFile = "tools/sfx_gen.py"` in the
+manifest and upload with the rest on day one. After changing the script:
+`python3 tools/sfx_gen.py && lune run tools/verify_assets --fix-hashes && lune run tools/gen_asset_ids`.
+Game sounds (footfalls, engines, hazards) belong in each game's own generator, built the same way.

@@ -30,10 +30,10 @@ UI.Kit.CurrencyPill.new({
 | `Theme` | Token accessors: `color(name)`, `hex`, `font(role)`, `textSize`, `variant(v)`, `setGame`, `onGameChanged`. | yes (pure parts) |
 | `Color` | Hex parsing, mixing, WCAG contrast. | yes |
 | `Layout` | Viewport scale, safe-zone rects, input-mode mapping, grid columns, drawer style. | yes |
-| `Format` | `compact` (1.2K), `grouped` (1,234), `delta` (+12), `isBigGain`. Loc (v0.2) will route through this. | yes |
+| `Format` | `compact` (1.2K), `grouped` (1,234), `delta` (+12), `isBigGain`. The kit shows numbers with `showCompact`/`showGrouped`/`showDelta`, which follow the locale after `loc:bindKit()` (1,2K in pt-br). | yes |
 | `Create` | Instance builder + styling primitives (`corner`, `stroke`, `textStroke`, `padding`, `list`, `text`). | no |
 | `Motion` | Tweens with the kit's easing vocabulary; `countUp` for animated numbers. | no |
-| `Hooks` | `sound(name)` and `haptic(kind)` events. Shared Audio (v0.2) calls `Hooks.setSoundHandler`. | yes |
+| `Hooks` | `sound(name)` and `haptic(kind)` events. Shared Audio's `bindKit` calls `Hooks.setSoundHandler`. | yes |
 | `SafeArea` | Root ScreenGui with `CoreUISafeInsets`, viewport `UIScale`, HUD anchors, banner and toast lanes. | no |
 | `ScreenManager` | One screen at a time, push/pop/replace, 2-modal cap, input mode, console focus, cinematic mode. | no |
 | `Kit` | Components (below). | `Variants` lists only |
@@ -107,8 +107,9 @@ floor is chosen so the smallest tappable control (48 px) never renders under
 ## Feedback hooks
 
 The kit raises `Hooks.sound("click" | "hover" | "open" | "close" | "success" |
-"fail" | "thump" | "pop" | "tab" | "toast")`. Until shared Audio lands (v0.2)
-nothing plays; Audio will register itself with `Hooks.setSoundHandler`.
+"fail" | "thump" | "pop" | "tab" | "toast")`. `audio:bindKit()` (shared Audio)
+registers with `Hooks.setSoundHandler` and plays `ui.<name>`, the generated set in
+`assets/sfx/`; without it the kit is silent.
 `Hooks.haptic("light" | "medium" | "heavy")` pulses gamepad and supported touch
 motors; Settings turns it off with `Hooks.setHapticsEnabled(false)`.
 

@@ -1,7 +1,7 @@
 # RBLX-shared status
 
-**Phase:** 1, Shared v0.1 (Net, Data, Types, Economy, UI theme + kit + gallery, Assets, Test/Sim harness, CI)
-**Version:** 0.1.0 (unreleased)
+**Phase:** 3, Shared v0.2 (v0.1 is merged and signed off)
+**Version:** 0.2.0 in progress
 
 ## Owner to-do
 - Before the games wire up Net: open `NetSmoke.rbxl` in Studio and press Play. It should print `NET SMOKE: PASS (48 checks)`; if it doesn't, paste the `FAIL` lines into the project. Where to get the file: [Studio smoke test for Net](TOOLING.md#studio-smoke-test-for-net).
@@ -49,8 +49,20 @@
 
 ## Loc (early, for the game foundations)
 - [x] Loc: per-locale string tables, `{name}` placeholders with number formats, CLDR plurals for en/pt-BR/es, source fallback, `validate` for specs, Roblox localization CSV export
-- Weak spot: kit components (CurrencyPill, Stat, NumberPop) still format with English separators (1.2K, not 1,2K) because they call `UI.Format` directly. Fix with Settings in v0.2 by routing the kit through the active Loc.
-- [ ] Translator workflow and cloud table sync (v0.2, with Settings for a language override)
+- [x] Kit numbers follow the locale (`loc:bindKit()`: 1,2K in pt-br and es)
+- [ ] Language override in Settings (with Settings v0.2)
+
+## Shared v0.2: Analytics, Loc, Audio, VFX, Settings, Admin
+- [x] `UI.Kit.TextInput` (Codes screen, Admin console) with gallery story (#15)
+- [x] Analytics: join, session length, onboarding steps, first milestones (time to first win), purchases from `ReceiptGranted`, stage progression, economy sources/sinks; batched within Roblox's budget; ring buffer for Admin
+- [x] `Shared.Strings` (en, pt-br, es) and `Loc.merge`, checked complete by a spec
+- [x] Audio: named sounds with variations and pooling, music crossfade, category volumes, kit sounds through `UI.Hooks`
+- [x] 22 base SFX (UI set plus purchase, win, checkpoint, unlock, fail) from `tools/sfx_gen.py`, in the manifest, pending upload
+- [x] VFX: 8 particle presets on theme colors, highlights (capped), camera shake (capped, scalable to off), screen flash (can be turned off)
+- [ ] Kit Toggle and Slider
+- [ ] Settings: per-player settings saved in the profile (music, sfx, shake, flashes, haptics, colorblind palette, control scheme, language), server-validated, Settings screen
+- [ ] Admin: owner whitelist, chat commands (grant, reset, teleport, kick, sim-run), data inspector with DataDiagnostics, flags, analytics feed, Admin panel
+- Weak spots, honestly: none of the SFX have been heard on a device yet (synthesized and checked for level and length only). VFX uses engine particle sprites, so splash and confetti look like sparkles until custom sprites exist. Roblox Analytics only shows data from a published place, so the dashboards are unverified until launch.
 
 ## World (`car/foundation`, used by both games)
 - [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
