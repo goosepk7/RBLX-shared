@@ -127,6 +127,60 @@ Daily backups and one-player restores: `tools/backup_profiles`, see [TOOLING.md]
 
 ---
 
+## Economy
+
+Currencies, earning and spending with reasons, stacked multipliers, timed boosts, overflow-safe
+balances and a ledger for analytics (brief §4). Server only; nothing yields. Each player's wallet
+lives in their profile at `profile.data.wallet`, so it saves and locks with the profile.
+
+| API | Notes |
+|---|---|
+| `Economy.new({ currencies, reasons?, multiplyWithin?, maxMultiplier?, walletField?, ledgerSize?, tickInterval?, ... })` | `currencies` are `Types.Currency` (whole numbers unless `integer = false`, optional `max`, `starting`, `leaderstat`, `icon`). `reasons` maps a name to its kind: `"earn"` (multiplied, counts toward lifetime), `"grant"` (exact and whole, never multiplied, no lifetime unless `{ kind = "grant", lifetime = true }`), `"spend"` or `"adjust"`. Defaults: `purchase`, `code`, `refund` are grants; `admin`, `rebirth` are adjustments. `maxMultiplier` 100, `ledgerSize` 50 per player, `tickInterval` 5 s. Injectable: `task`, `now`, `clock`, `players`, `createLeaderstat`. |
+| `economy:bindStore(store)` | Attaches each profile as Data loads it, detaches it on release, and forgets a player's multipliers when they leave. `attach(who, data)` / `detach(who)` do it by hand (`who` is a Player or a UserId everywhere). |
+| `economy:earn(who, currency, amount, reason)` | `(granted, failure?)`: what reached the balance after multipliers, the carried fraction and the cap. Integer currencies carry fractions to the next earn, so 2 Wins at 1.25x pays 2, then 3. At the cap the balance stops but `lifetime` and `allTime` still count the whole earning. |
+| `economy:spend(who, currency, amount, reason)`, `:spendMany(who, { [currency] = amount }, reason)`, `:canAfford(...)` | `(ok, failure?)`. Never below zero. `spendMany` takes every cost or none, and its signals fire after all of them. |
+| `economy:set(who, currency, value, reason, { lifetime? })` | An `adjust`: rebirth resets (`set(p, "Wins", 0, "rebirth", { lifetime = 0 })`) and admin tools. |
+| `economy:balance(who, currency)`, `:lifetime(...)`, `:allTime(...)` | `lifetime` is since the last reset (gates, Stilts height); spending never lowers it. `allTime` never resets. |
+| `economy:setMultiplier(who, id, spec?)`, `:clearMultipliers(who)`, `:setGlobalMultiplier(id, spec?)` | A `Types.MultiplierSpec`: `{ group, factor, currencies?, reasons?, expiresAt? }`. Sources in a group add their bonuses (2x and +25% make 2.25x); groups multiply (rebirth x pass x event x boost); groups in `multiplyWithin` multiply their own sources. Per-player sources can be set before the wallet loads. `nil` removes one. |
+| `economy:multiplier(who, currency, reason)`, `:multiplierBreakdown(...)` | The total, and `(total, { [group] = factor })` for "2.25x from passes" UI. |
+| `economy:addBoost(who, id, factor, seconds, currencies?)`, `:removeBoost(who, id)`, `:getBoosts(who)` | Boosts are saved in the wallet, sit in the `boost` group, and count down only while the player is in a server. Buying the same id again adds time. |
+| `economy:getLedger(who, limit?)`, `:getTotals()`, `:getDiagnostics()` | The newest ledger entries (`Types.LedgerEntry`), server-wide sums per currency and reason, and the Admin panel view. |
+| `economy.Changed`, `economy.Transaction`, `economy.BoostsChanged` | `(player?, userId, currency, balance, delta, reason)`, a copy of each ledger entry (for Analytics), `(player?, userId)`. |
+| `Economy.attributeName(currency)`, `.lifetimeAttributeName(currency)`, `.boostAttributeName(id)`, `Economy.observe(player, currency, callback)` | Player attributes the client reads: `Currency_<id>`, `CurrencyLifetime_<id>`, and `Boost_<id>` (the unix time the boost ends). `observe` calls back now and on every change. |
+| `Economy.Wallet`, `Economy.Multipliers`, `Economy.newWallet()`, `Economy.MAX_BALANCE` | The pure math, for sims and tests. Balances stop at 1e15. |
+
+Failures: `"notLoaded"`, `"unknownCurrency"`, `"unknownReason"`, `"wrongReasonKind"`,
+`"invalidAmount"` (logged as warnings, since they are bugs) and `"insufficient"` (normal play,
+not logged). A failed call changes nothing.
+
+```luau
+local economy = Shared.Economy.new({
+	currencies = {
+		{ id = "Wins", displayName = "Wins", leaderstat = true, icon = "icon_wins" },
+	},
+	reasons = { challenge = "earn", event = "earn", shop = "spend" },
+})
+economy:bindStore(Profiles)
+
+-- Passes, when ownership is known (before or after the profile loads).
+economy:setMultiplier(player, "pass.2xWins", { group = "pass", factor = 2, currencies = { "Wins" } })
+economy:setMultiplier(player, "pass.vip", { group = "pass", factor = 1.25 })
+economy:setMultiplier(player, "pass.lucky", { group = "lucky", factor = 2, reasons = { "event" } })
+economy:addBoost(player, "boost.2xWins", 2, 30 * 60) -- the 30-minute dev product
+
+economy:earn(player, "Wins", 4, "challenge") -- 4 x 2.25 (passes) x 2 (boost) = 18
+local ok, failure = economy:spend(player, "Wins", 50, "shop") -- false, "insufficient"
+
+MarketplaceService.ProcessReceipt = function(receipt)
+	return Profiles:processReceipt(receipt, function(profile, r)
+		-- A Wins pack: exact, and it never raises lifetime Wins (height).
+		return economy:earn(profile.userId, "Wins", 500, "purchase") > 0
+	end)
+end
+```
+
+---
+
 ## Net
 
 Every remote in both games goes through Net (brief §3.3). Declare remotes once in a module both
@@ -301,7 +355,7 @@ the module costs nothing. Changing a field is a breaking change.
 | Types | Used by |
 |---|---|
 | `UserId`, `CurrencyId` | Everything |
-| `Currency`, `CurrencyState`, `BoostState`, `Wallet` | Economy; the wallet lives at `profile.data.wallet` |
+| `Currency`, `CurrencyState`, `BoostState`, `Wallet`, `MultiplierSpec`, `LedgerEntry` | Economy; the wallet lives at `profile.data.wallet` |
 | `SessionLock`, `ReceiptRecord`, `ProfileMeta`, `PlayerProfile<T>` | Data |
 | `StageResult` | Produced by game systems; consumed by Progression and Leaderboards (v0.2) |
 | `PurchaseReceipt` | `ProcessReceipt`'s `receiptInfo`, typed |

@@ -64,6 +64,40 @@ export type Wallet = {
 	boosts: { [string]: BoostState },
 }
 
+-- A multiplier source such as a rebirth bonus, a gamepass or a server event. Sources in the same
+-- group add their bonuses (1.25 and 2 make 2.25); groups multiply (rebirth x pass x event).
+export type MultiplierSpec = {
+	-- e.g. "rebirth", "pass", "event", "boost".
+	group: string,
+	-- 2 for double, 1.25 for +25%. Must be greater than 0.
+	factor: number,
+	-- Currencies it applies to; nil means all.
+	currencies: { CurrencyId }?,
+	-- Earn reasons it applies to; nil means every multiplied reason.
+	reasons: { string }?,
+	-- os.time() after which it stops applying (server events). Nil means until removed.
+	expiresAt: number?,
+}
+
+-- One balance change, for analytics, the Admin panel and sims.
+export type LedgerEntry = {
+	-- os.time() of the change.
+	at: number,
+	userId: UserId,
+	currency: CurrencyId,
+	-- "earn" (multiplied), "grant" (exact, e.g. purchases), "spend" or "adjust" (set by admin or rebirth).
+	kind: string,
+	reason: string,
+	-- Signed change actually applied to the balance.
+	delta: number,
+	balance: number,
+	-- For earns: the amount before multipliers and the multiplier applied.
+	base: number?,
+	multiplier: number?,
+	-- Lost to the balance cap.
+	clamped: number?,
+}
+
 --[[ Data ]]
 
 -- Session lock written into a profile while a server owns it.

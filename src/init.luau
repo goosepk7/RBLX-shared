@@ -16,6 +16,7 @@ local RBLXShared = {
 	AntiExploit = require("@self/AntiExploit"),
 	Assets = require("@self/Assets"),
 	Data = require("@self/Data"),
+	Economy = require("@self/Economy"),
 	Net = require("@self/Net"),
 	Signal = require("@self/Signal"),
 	Sim = require("@self/Sim"),
