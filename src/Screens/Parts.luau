@@ -84,7 +84,7 @@ end
 function Parts.stack(parent: Instance, order: number, direction: ("Vertical" | "Horizontal")?, gap: number?): Frame
 	local vertical = direction ~= "Horizontal"
 	local frame = Create.group({
-		Size = if vertical then UDim2.fromScale(1, 0) else UDim2.new(1, 0, 0, 0),
+		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		LayoutOrder = order,
 	}, {
@@ -146,7 +146,7 @@ function Parts.panel(
 		Variant = o.variant,
 		Scroll = true,
 		FooterHeight = if o.footer then nil else 0,
-		Size = o.size or UDim2.new(0.92, 0, 0.88, 0),
+		Size = o.size or UDim2.fromScale(0.92, 0.88),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		OnClose = ctx.close,
