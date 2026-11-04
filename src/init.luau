@@ -13,6 +13,7 @@
 local RBLXShared = {
 	VERSION = "0.1.0",
 
+	Admin = require("@self/Admin"),
 	Analytics = require("@self/Analytics"),
 	AntiExploit = require("@self/AntiExploit"),
 	Assets = require("@self/Assets"),
