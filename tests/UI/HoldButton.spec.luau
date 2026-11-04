@@ -56,3 +56,23 @@ T.describe("UI.Kit.ProgressBar fill span", function()
 		expect(w).toBe(0)
 	end)
 end)
+
+T.describe("UI.Kit.HoldButton release", function()
+	T.it("fires held on a release that lands before the frame loop saw the full fill", function()
+		-- Zero hold time, press and release in one frame: a tap.
+		expect(HoldButton.releaseAction(0, 0, false, true)).toBe("held")
+		-- Filled between frames, released before the next one.
+		expect(HoldButton.releaseAction(1.01, 1, false, true)).toBe("held")
+	end)
+
+	T.it("does nothing more once held already fired", function()
+		expect(HoldButton.releaseAction(2, 1, true, true)).toBe("none")
+		expect(HoldButton.releaseAction(2, 1, true, false)).toBe("none")
+	end)
+
+	T.it("cancels an early release, and a cancel or disable never fires held", function()
+		expect(HoldButton.releaseAction(0.3, 1, false, true)).toBe("cancelled")
+		expect(HoldButton.releaseAction(1.5, 1, false, false)).toBe("cancelled")
+		expect(HoldButton.releaseAction(0, 0, false, false)).toBe("cancelled")
+	end)
+end)

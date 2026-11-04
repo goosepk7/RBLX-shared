@@ -94,6 +94,27 @@ function HoldButton.outcome(elapsed: number, holdTime: number, released: boolean
 	return if released then "cancelled" else "pending"
 end
 
+--[[
+	What letting go of a Hold-mode press does. `fired` is whether OnHeld already ran (from the
+	frame loop). A release that lands after the fill completed but before the next frame still
+	counts as held, so a zero hold time pressed and released in one frame is a tap, not a
+	cancel. A cancel or a disable (`released = false`) never fires held.
+]]
+function HoldButton.releaseAction(
+	elapsed: number,
+	holdTime: number,
+	fired: boolean,
+	released: boolean
+): "held" | "cancelled" | "none"
+	if fired then
+		return "none"
+	end
+	if released and HoldButton.outcome(elapsed, holdTime, true) == "held" then
+		return "held"
+	end
+	return "cancelled"
+end
+
 function HoldButton.new(props: Props): (Frame, Handle)
 	local variant: Variant = props.Variant or "Primary"
 	local mode: Mode = props.Mode or "Hold"
@@ -212,6 +233,16 @@ function HoldButton.new(props: Props): (Frame, Handle)
 		return not disabled and not loading
 	end
 
+	local function fireHeld()
+		fired = true
+		Hooks.sound("pop")
+		Hooks.haptic("light")
+		Motion.tween(ef.scale, m.fastDuration, "Enter", { Scale = 1.06 })
+		if props.OnHeld then
+			props.OnHeld()
+		end
+	end
+
 	local function finish(released: boolean)
 		if holding == false then
 			return
@@ -228,7 +259,10 @@ function HoldButton.new(props: Props): (Frame, Handle)
 			return
 		end
 		showFill(restProgress)
-		if not fired then
+		local action = HoldButton.releaseAction(elapsed, holdTime, fired, released)
+		if action == "held" then
+			fireHeld()
+		elseif action == "cancelled" then
 			Hooks.sound("close")
 			if props.OnCancelled then
 				props.OnCancelled()
@@ -255,13 +289,7 @@ function HoldButton.new(props: Props): (Frame, Handle)
 			local t = HoldButton.progress(elapsed, holdTime)
 			showFill(t)
 			if mode == "Hold" and not fired and HoldButton.outcome(elapsed, holdTime, false) == "held" then
-				fired = true
-				Hooks.sound("pop")
-				Hooks.haptic("light")
-				Motion.tween(ef.scale, m.fastDuration, "Enter", { Scale = 1.06 })
-				if props.OnHeld then
-					props.OnHeld()
-				end
+				fireHeld()
 			end
 		end)
 	end
