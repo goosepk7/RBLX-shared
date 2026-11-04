@@ -45,6 +45,12 @@ jobs:
           CI: "true"
         run: lune run tests
 
+      - name: Project lint (tools/lint)
+        run: lune run tools/lint
+
+      - name: Asset manifest (verify_assets)
+        run: lune run tools/verify_assets
+
       - name: Sims (lune)
         run: lune run sims
 
