@@ -22,3 +22,6 @@
 .env
 .env.*
 *.key
+
+# Sim outputs (sims commit what matters into docs/TUNING.md)
+/sims/out/
