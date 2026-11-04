@@ -45,7 +45,7 @@
 - [x] `tools/backup_profiles`: daily backups and one-player restores through Open Cloud; the scheduled workflow for game repos is in docs/TOOLING.md
 - [ ] DataDiagnostics panel UI (with Admin v0.2)
 - [x] Economy: currencies, earn/spend/grant/adjust with declared reasons, grouped multipliers (rebirth x pass x event x boost), play-time boosts saved in the wallet, fraction carry and balance caps, player attributes and leaderstats, ledger and per-reason totals, `bindStore` wiring to Data
-- [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, Util
+- [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, UI (a pointer to UI.md), Util; every name in it checked against the code for v0.1
 
 ## UI kit (`shared/ui`)
 - [x] Theme tokens (base palette + Stilts/Car accents), fonts, type scale, shapes, motion (`src/UI/Tokens.luau`)

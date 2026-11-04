@@ -199,8 +199,9 @@ export type Store<T> = {
 	Loaded: Signal.Signal<Player, Profile<T>>,
 	-- (player or nil, profile, reason) when this server stops owning a profile.
 	Released: Signal.Signal<Player?, Profile<T>, ReleaseReason>,
-	-- (player or nil, profile, receipt) after a purchase was granted and saved. Confirm it to the
-	-- client and log it to analytics from here.
+	-- (player or nil, profile, receipt) once per purchase, when the save that stores its grant
+	-- succeeds: its own save, Roblox's retry, an autosave or the release. Confirm it to the client
+	-- and log it to analytics from here.
 	ReceiptGranted: Signal.Signal<Player?, Profile<T>, Types.PurchaseReceipt>,
 
 	-- Loads and locks a player's profile. Yields until loaded or failed.
@@ -253,8 +254,9 @@ type Record = {
 	lastError: string?,
 	size: number,
 	warnedSize: boolean,
-	-- PurchaseIds granted in memory but not yet saved.
-	unsaved: { [string]: boolean },
+	-- Purchases granted in memory but not yet saved, by PurchaseId. The save that stores one
+	-- confirms it (ReceiptGranted), whichever save that is.
+	unsaved: { [string]: Types.PurchaseReceipt },
 }
 
 type Loading = {
@@ -557,7 +559,17 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 			Log.error("Data", profile.key .. " " .. (message :: string) .. " (the last good save is kept)")
 		else
 			for _, purchaseId in included do
-				record.unsaved[purchaseId] = nil
+				local receipt = record.unsaved[purchaseId]
+				if receipt ~= nil then
+					record.unsaved[purchaseId] = nil
+					-- Stored at last: by its own save, Roblox's retry, an autosave or the release.
+					counters.receiptsGranted += 1
+					Log.info(
+						"Data",
+						profile.key .. " granted product " .. tostring(receipt.ProductId) .. " (" .. purchaseId .. ")"
+					)
+					store.ReceiptGranted:Fire(record.player, profile, receipt)
+				end
 			end
 			record.saveCount += 1
 			record.lastSaveAt = now()
@@ -1082,16 +1094,14 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 		while #receipts > MAX_RECEIPTS do
 			table.remove(receipts, 1)
 		end
-		record.unsaved[purchaseId] = true
+		record.unsaved[purchaseId] = receipt
+		-- The save that stores the grant fires ReceiptGranted.
 		local saved = save(record, false)
 		if not saved or record.unsaved[purchaseId] then
 			-- Kept in memory, so a retry won't grant twice; Roblox asks again later.
 			counters.receiptsDeferred += 1
 			return decisions.NotProcessedYet
 		end
-		counters.receiptsGranted += 1
-		Log.info("Data", profile.key .. " granted product " .. tostring(receipt.ProductId) .. " (" .. purchaseId .. ")")
-		store.ReceiptGranted:Fire(record.player, profile, receipt)
 		return decisions.PurchaseGranted
 	end
 

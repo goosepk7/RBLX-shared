@@ -19,6 +19,7 @@ end)
 
 local CURRENCIES: { Types.Currency } = {
 	{ id = "Wins", displayName = "Wins" },
+	{ id = "Gems", displayName = "Gems", max = 100 },
 }
 
 local function economyFor(world: World.World, server: World.Server): Economy.Economy
@@ -119,8 +120,8 @@ T.describe("Economy with Data", function()
 		local economy = economyFor(world, a)
 		world.mps.ProcessReceipt = function(receipt: any)
 			return a.store:processReceipt(receipt, function(profile: any, _r: any)
-				local granted = economy:earn(profile.userId, "Wins", 500, "purchase")
-				return granted > 0
+				local _, failure = economy:earn(profile.userId, "Wins", 500, "purchase")
+				return failure == nil
 			end)
 		end
 		local player = a:join(1)
@@ -132,5 +133,26 @@ T.describe("Economy with Data", function()
 		local stored = world:stored(1)
 		expect(stored.data.wallet.currencies.Wins.balance).toBe(500)
 		expect(stored.data.wallet.currencies.Wins.lifetime).toBe(0)
+	end)
+
+	T.it("counts a pack that hits the cap as delivered, so Roblox doesn't retry it forever", function()
+		local world = World.new()
+		local a = world:server("A")
+		local economy = economyFor(world, a)
+		world.mps.ProcessReceipt = function(receipt: any)
+			return a.store:processReceipt(receipt, function(profile: any, _r: any)
+				local _, failure = economy:earn(profile.userId, "Gems", 50, "purchase")
+				return failure == nil
+			end)
+		end
+		local player = a:join(1)
+		economy:set(player, "Gems", 90, "admin")
+		local _, decision = world.mps:purchaseProduct(player, 2002)
+		expect(decision).toBe(world.mps.Decision.PurchaseGranted)
+		expect(#world.mps:pending()).toBe(0)
+		expect(economy:balance(player, "Gems")).toBe(100)
+		local ledger = economy:getLedger(player, 1)
+		expect(ledger[1].delta).toBe(10)
+		expect(ledger[1].clamped).toBe(40)
 	end)
 end)

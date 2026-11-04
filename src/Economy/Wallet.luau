@@ -60,9 +60,10 @@ end
 
 --[[
 	Makes `wallet` usable with `currencies`: adds missing currencies at their starting balance and
-	repairs values a bad write could have left (NaN, negative, over the cap, fractional). Unknown
-	currencies are kept as they are; unreadable boosts are removed. Returns the problems it fixed,
-	for logging.
+	repairs values a bad write could have left (NaN, negative, over MAX_BALANCE, fractional). A
+	balance over the currency's own `max` is kept, since the game may have lowered the max; earns
+	add nothing to it until spending brings it under. Unknown currencies are kept as they are;
+	unreadable boosts are removed. Returns the problems it fixed, for logging.
 ]]
 function Wallet.normalize(wallet: any, currencies: { Currency }): { string }
 	local problems: { string } = {}
@@ -90,7 +91,7 @@ function Wallet.normalize(wallet: any, currencies: { Currency }): { string }
 			wallet.currencies[currency.id] = { balance = starting, lifetime = 0, allTime = 0, carry = 0 }
 		else
 			for _, field in { "balance", "lifetime", "allTime" } do
-				local fixed, changed = sanitize(state[field], if field == "balance" then cap else MAX_BALANCE, integer)
+				local fixed, changed = sanitize(state[field], MAX_BALANCE, integer)
 				if changed then
 					table.insert(
 						problems,
@@ -136,8 +137,8 @@ export type EarnResult = {
 
 --[[
 	Adds `amount * factor` (plus any carried fraction on integer currencies). The balance takes what
-	fits under the cap; `allTime`, and `lifetime` when `countsLifetime`, take the whole earning.
-	Callers validate amount >= 0 and factor > 0.
+	fits under the cap (nothing, when it is already over a lowered cap); `allTime`, and `lifetime`
+	when `countsLifetime`, take the whole earning. Callers validate amount >= 0 and factor > 0.
 ]]
 function Wallet.earn(
 	wallet: Wallet,
