@@ -4,7 +4,7 @@
 	opens the shop. Stacked top-left in the HUD (Wins/Height, Cash/Parts).
 
 		local root, pill = Kit.CurrencyPill.new({
-			Icon = Assets.get("icon_wins"), Value = profile.wins, OnPlus = openShop,
+			Icon = "icon_wins", Value = profile.wins, OnPlus = openShop,
 		})
 		pill.setValue(newWins) -- counts up and spawns a NumberPop for gains
 ]]
@@ -76,11 +76,8 @@ function CurrencyPill.new(props: Props): (Frame, Handle)
 	root.Size = UDim2.fromOffset(props.Width or 176, h + edgeSize)
 
 	local iconSize = h + 4
-	Create.new("ImageLabel", {
+	Common.icon(props.Icon :: string, {
 		Name = "Icon",
-		BackgroundTransparency = 1,
-		Image = props.Icon,
-		ScaleType = Enum.ScaleType.Fit,
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, -8, 0.5, 0),
 		Size = UDim2.fromOffset(iconSize, iconSize),

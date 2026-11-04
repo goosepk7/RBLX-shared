@@ -50,6 +50,7 @@
 - [x] SafeArea (notch + topbar insets, viewport UIScale, HUD anchors) and ScreenManager (push/pop, 2-modal cap, input mode, console focus, cinematic mode)
 - [x] `/uigallery`: every component and variant, Stilts/Car accent toggle
 - [x] 16 core icons (SVG source + 256/64 PNG) and `tools/rasterize.py`
-- [ ] Icon entries in `assets/manifest.json` (after the Assets PR lands)
+- [x] Icon entries in `assets/manifest.json` (32: 256 px + `_64`, pending upload); kit `Icon` props take asset names and show the placeholder card until uploaded
+- [ ] Upload the core icons (`tools/upload_assets`, needs the Open Cloud key)
 - [ ] Wire `Hooks.setSoundHandler` from shared Audio (v0.2)
 - Weak spots, honestly: the kit has not been seen in Studio yet. Layout and press feel are written to spec but unverified on a device until the owner opens `/uigallery`. Haptics on phones depend on Roblox's touch motor support, which is limited.

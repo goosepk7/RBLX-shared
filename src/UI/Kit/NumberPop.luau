@@ -20,7 +20,6 @@ export type Variant = "Gain" | "Loss" | "Gold"
 export type Options = {
 	Before: number?, -- value before the change; enables the big-gain check
 	Variant: Variant?,
-	Icon: string?,
 	Text: string?, -- overrides "+N"
 }
 

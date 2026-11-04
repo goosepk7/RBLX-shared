@@ -4,9 +4,10 @@
 	down, holds, auto-dismisses; queued so two announcements never overlap.
 
 		local lane = Kit.Banner.lane(screenGui) -- SafeArea creates one for you
-		lane.show({ Text = "FLASH FLOOD IN 10s!", Variant = "Warning", Icon = Assets.get("icon_event") })
+		lane.show({ Text = "FLASH FLOOD IN 10s!", Variant = "Warning", Icon = "icon_event" })
 ]]
 
+local Common = require("./Common")
 local Create = require("../Create")
 local Hooks = require("../Hooks")
 local Motion = require("../Motion")
@@ -81,11 +82,8 @@ function Banner.build(props: Props): Frame
 		Create.list("Horizontal", Tokens.space.sm, "Center", "Center"),
 	})
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromOffset(36, 36),
 			LayoutOrder = 1,
 			ZIndex = 3,

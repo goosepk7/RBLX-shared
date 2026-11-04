@@ -110,11 +110,8 @@ function Panel.new(props: Props): (Frame, Handle)
 		Create.padding(0, 0, 0, Tokens.space.lg),
 	})
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromOffset(Tokens.size.iconLg - 8, Tokens.size.iconLg - 8),
 			ZIndex = 4,
 			Parent = titleRow,

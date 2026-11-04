@@ -22,7 +22,7 @@ export type Props = {
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
 	Parent: Instance?,
-	Icon: string, -- image content id
+	Icon: string, -- asset name ("icon_settings")
 	Label: string, -- tooltip + accessibility; already localized
 	Variant: Variant?,
 	Badge: number?, -- notification count; 0/nil hides it
@@ -61,11 +61,8 @@ function IconButton.new(props: Props): (Frame, Handle)
 	Common.applyBase(root, props, "IconButton")
 	root.Size = UDim2.fromOffset(size, size + edgeSize)
 
-	local icon = Create.new("ImageLabel", {
+	local icon = Common.icon(props.Icon :: string, {
 		Name = "Icon",
-		BackgroundTransparency = 1,
-		Image = props.Icon,
-		ScaleType = Enum.ScaleType.Fit,
 		Size = UDim2.fromOffset(Tokens.size.iconMd, Tokens.size.iconMd),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),

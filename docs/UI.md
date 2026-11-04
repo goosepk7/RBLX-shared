@@ -15,7 +15,7 @@ local area = UI.SafeArea.new({ Name = "HUD" })
 local screens = UI.ScreenManager.new(area)
 
 UI.Kit.CurrencyPill.new({
-	Icon = Assets.get("icon_wins"),
+	Icon = "icon_wins", -- asset name; pending icons show the placeholder card
 	Value = profile.wins,
 	OnPlus = function() screens:push("Shop", { tab = "Boosts" }) end,
 	Parent = area.anchors.TopLeft,
@@ -42,7 +42,10 @@ UI.Kit.CurrencyPill.new({
 ## Components (`UI.Kit`)
 
 Each component module has `Variants` (the list the gallery and tests check)
-and a constructor. Constructors return `(root, handle)`; handles expose
+and a constructor. `Icon` props take an asset name from a registered manifest
+(`"icon_wins"`), not a content id; the kit resolves it with
+`Assets.applyImage`, so an icon that is still pending upload shows its
+placeholder card instead of a blank square. Constructors return `(root, handle)`; handles expose
 `setDisabled`, `setLoading` where meaningful, and `destroy`.
 
 | Component | Variants | Notes |
@@ -112,7 +115,6 @@ motors; Settings turns it off with `Hooks.setHapticsEnabled(false)`.
 
 ```luau
 UI.Gallery.bindChatCommand({
-	icon = function(name) return Assets.get(name) end,
 	allowedUserIds = { OWNER_USER_ID }, -- Studio is always allowed
 })
 ```
@@ -129,7 +131,7 @@ drawer, confirm, number pop, confetti) have a button that plays them.
 outline in Ink at 85%, darker lower third, one 18% white highlight. PNGs are
 rasterized by `python3 tools/rasterize.py` (cairosvg) to `assets/icons/png/256`
 and `assets/icons/png/64`, and are committed so the uploader can run without
-Python.
+Python. Both sizes are in `assets/manifest.json` (`icon_wins`, `icon_wins_64`).
 
 `icon_wins`, `icon_height`, `icon_cash`, `icon_part`, `icon_rebirth`,
 `icon_codes`, `icon_leaderboard`, `icon_shop`, `icon_settings`, `icon_event`,
