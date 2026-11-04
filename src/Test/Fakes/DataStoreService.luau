@@ -482,7 +482,7 @@ function DataStoreService.new(): FakeDataStoreService
 	end
 
 	function service.failNext(_self: FakeDataStoreService, method: string, spec: FailureSpec?)
-		local s = spec or {}
+		local s: FailureSpec = spec or {}
 		table.insert(failures, { method = method, spec = s, remaining = s.times or 1 })
 	end
 

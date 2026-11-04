@@ -175,7 +175,7 @@ function MarketplaceService.new(): FakeMarketplaceService
 		id: number,
 		info: { Name: string?, PriceInRobux: number? }?
 	)
-		local i = info or {}
+		local i: { Name: string?, PriceInRobux: number? } = info or {}
 		products[id] = {
 			Name = i.Name or ("Product " .. tostring(id)),
 			Description = "",
@@ -204,7 +204,7 @@ function MarketplaceService.new(): FakeMarketplaceService
 		productId: number,
 		options: { purchaseId: string?, price: number? }?
 	): (Receipt, any, string?)
-		local o = options or {}
+		local o: { purchaseId: string?, price: number? } = options or {}
 		purchaseCounter += 1
 		local info = products[productId]
 		local receipt: Receipt = {

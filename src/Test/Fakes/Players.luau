@@ -57,7 +57,7 @@ local Players = {}
 local nextUserId = 1000
 
 function Players.newPlayer(spec: PlayerSpec?): FakePlayer
-	local s = spec or {}
+	local s: PlayerSpec = spec or {}
 	local userId = s.UserId
 	if userId == nil then
 		nextUserId += 1

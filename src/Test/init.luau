@@ -122,7 +122,7 @@ function Test.describe(name: string, body: () -> ())
 	table.insert(current.children, { kind = "suite", suite = suite })
 	local previous = current
 	current = suite
-	local ok, err = pcall(body)
+	local ok, err = pcall(body :: any)
 	current = previous
 	if not ok then
 		-- A describe body that errors is a registration failure: report it as a failing case.
@@ -236,7 +236,7 @@ function Test.usesOnly(): boolean
 end
 
 function Test.run(options: RunOptions?): RunResult
-	local opts = options or {}
+	local opts: RunOptions = options or {}
 	local result: RunResult = {
 		passed = 0,
 		failed = 0,
@@ -289,7 +289,7 @@ function Test.run(options: RunOptions?): RunResult
 		-- afterEach always runs (innermost first) so fakes and globals are restored.
 		for i = #suites, 1, -1 do
 			for _, hook in suites[i].afterEach do
-				local hookOk, hookErr = pcall(hook)
+				local hookOk, hookErr = pcall(hook :: any)
 				if not hookOk and message == nil then
 					message = "afterEach: " .. errorText(hookErr)
 				end
@@ -307,7 +307,7 @@ function Test.run(options: RunOptions?): RunResult
 	local function runSuite(suite: Suite)
 		local setupError: string? = nil
 		for _, hook in suite.beforeAll do
-			local ok, err = pcall(hook)
+			local ok, err = pcall(hook :: any)
 			if not ok then
 				setupError = errorText(err)
 				break
@@ -332,7 +332,7 @@ function Test.run(options: RunOptions?): RunResult
 			end
 		end
 		for _, hook in suite.afterAll do
-			local ok, err = pcall(hook)
+			local ok, err = pcall(hook :: any)
 			if not ok then
 				report({
 					file = suite.file,

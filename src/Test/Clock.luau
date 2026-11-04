@@ -71,7 +71,7 @@ type Timer = {
 local Clock = {}
 
 function Clock.new(options: Options?): Clock
-	local opts = options or {}
+	local opts: Options = options or {}
 	local start = opts.start or 1_700_000_000
 	local minWait = opts.minWait or 1 / 60
 

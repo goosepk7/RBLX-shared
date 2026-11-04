@@ -35,7 +35,8 @@ for _, path in files do
 	-- tests/foo/bar.spec.luau -> @tests/foo/bar.spec (require paths omit the extension)
 	local modulePath = "@" .. string.sub(path, 1, -6)
 	local ok, err = pcall(function()
-		require(modulePath)
+		-- Dynamic path: cast so the type checker does not try to resolve it statically.
+		(require :: any)(modulePath)
 	end)
 	if not ok then
 		loadErrors += 1
