@@ -1,0 +1,39 @@
+{
+	"name": "NetSmoke",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"Packages": {
+				"$className": "Folder",
+				"RBLXShared": {
+					"$path": "../default.project.json"
+				}
+			},
+			"NetSmoke": {
+				"$path": "NetSmoke"
+			}
+		},
+		"ServerScriptService": {
+			"NetSmokeServer": {
+				"$path": "NetSmokeServer.server.luau"
+			}
+		},
+		"StarterPlayer": {
+			"StarterPlayerScripts": {
+				"NetSmokeClient": {
+					"$path": "NetSmokeClient.client.luau"
+				}
+			}
+		},
+		"Workspace": {
+			"SpawnLocation": {
+				"$className": "SpawnLocation",
+				"$properties": {
+					"Anchored": true,
+					"Size": [64, 1, 64],
+					"Duration": 0
+				}
+			}
+		}
+	}
+}

@@ -236,7 +236,9 @@ Tests and sims use `Net.Loopback.new()` (`.server`, `:connect(player)`, `:discon
 `:injectFromClient(player, "Ns.Remote", ...)` to act as a modified client) with
 `Net.newContext({ side, transport, task?, strikes?, validateOutgoing?, defaultRateLimit? })`,
 passed as `Net.namespace(name, remotes, { context = ctx })`. Server-to-client payloads are
-checked against their schema in Studio and tests (`validateOutgoing`).
+checked against their schema in Studio and tests (`validateOutgoing`). The Studio smoke place
+checks the Roblox transport and the loopback's argument rules against real remotes; see
+[Studio smoke test for Net](TOOLING.md#studio-smoke-test-for-net).
 
 ```luau
 -- ReplicatedStorage/Stilts/Remotes.luau

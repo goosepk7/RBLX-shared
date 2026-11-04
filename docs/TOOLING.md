@@ -15,6 +15,7 @@ the submodule: `lune run Packages/RBLXShared/tools/<tool>`; they read the game's
 | `lune run tools/resolve_decals [--studio-script \| --apply ids.json]` | Finish images left `unresolved` (Decal uploaded, Image id unknown) without re-uploading. |
 | `lune run tools/backup_profiles --universe <id> --datastore <name>` | Back up every player profile via Open Cloud (`--restore <folder> --key <key>` puts one back). See [Profile backups](#profile-backups). |
 | `tools/ci/typecheck.sh` | Strict luau-lsp type check (needs `lune setup` first). |
+| `rojo build studio/netsmoke.project.json -o NetSmoke.rbxl` | The Studio smoke place for Net. CI attaches it to every run. See [Studio smoke test for Net](#studio-smoke-test-for-net). |
 
 ## Asset manifest
 
@@ -160,3 +161,42 @@ they can be granted again by hand.
 **Not yet verified against live Roblox** (no key until publish). Backup and restore are covered
 by unit tests and an end-to-end test against a local mock of the API. On the first real run,
 check that `summary.json`'s `saved` matches the number of players who have played.
+
+## Studio smoke test for Net
+
+Lune can't run `Net.RobloxTransport`, so `studio/` holds a small place that runs Net over real
+RemoteEvents, UnreliableRemoteEvents and RemoteFunctions. Run it once before the games wire Net
+up, and again after any change to `src/Net/RobloxTransport.luau` or
+`src/Net/LoopbackTransport.luau`.
+
+1. Get `NetSmoke.rbxl`: download the `rblx-shared-build` artifact from the latest CI run on
+   `main` (Actions tab, the run, Artifacts), or build it with
+   `rojo build studio/netsmoke.project.json -o NetSmoke.rbxl`.
+2. Open it in Studio and press **Play** (F5). **Run** (F8) starts no client, so the test waits
+   60 s and fails.
+3. Within about ten seconds the Output shows `NET SMOKE: PASS (48 checks)`. The verdict is also
+   left in Workspace's `NetSmoke` attribute.
+
+What it checks (`studio/NetSmokeServer.server.luau` drives, `studio/NetSmokeClient.client.luau`
+answers):
+
+- Each remote exists under `ReplicatedStorage.RBLXSharedNet.NetSmoke` with the right class, on
+  both sides.
+- Valid events and invokes arrive with their payloads, unreliable events arrive both ways, a
+  handler error reaches the client as `"error"`, and a 0.3 s invoke timeout fires.
+- Acting as a modified client with raw `FireServer` and `InvokeServer`: wrong types, extra
+  arguments and missing arguments are dropped and struck, three strikes flag the player, and a
+  client firing a server-to-client remote is struck.
+- The kill switch's `Disabled` attribute replicates, the client stops sending, and the server
+  drops whatever arrives anyway. Switching it back on restores delivery.
+- The client stops itself at a remote's burst, and the server drops a raw flood.
+- Wire rules: nine probe values go each way over a raw RemoteEvent, and what Roblox delivers is
+  compared with what `Net.Loopback` delivers for the same value: shared references, functions,
+  threads, non-string keys, mixed tables, metatables and cyclic tables.
+
+Each `NET SMOKE  FAIL` line names the check and what happened. A `wire, ...` failure means
+Roblox delivers that kind of value differently from `Net.Loopback`, so lune tests could pass on
+payloads the real wire changes: make `copyValue` in `src/Net/LoopbackTransport.luau` match, and
+update `tests/Net/NetSmokeProbes.spec.luau`. `info` lines (an array with a hole) only record
+what Roblox did and never fail the run. `NET SMOKE  log` lines are Net's own reports; the Boom
+handler error and the kill switch warning are expected.

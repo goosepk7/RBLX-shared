@@ -2,6 +2,7 @@
 # Strict Luau type check of everything in the repo with luau-lsp.
 # src/ is checked against Roblox API types; tests/, sims/ and tools/ also see the lune
 # typedefs (installed by `lune setup`, aliased as @lune in the generated .luaurc).
+# studio/ (the Net smoke place) has its own DataModel, so it gets its own sourcemap and pass.
 set -euo pipefail
 
 defs=".ci/globalTypes.d.luau"
@@ -37,4 +38,16 @@ luau-lsp analyze \
 	--no-strict-dm-types \
 	src tests sims tools 2>&1 | awk '!seen[$0]++'
 status=${PIPESTATUS[0]}
-exit "$status"
+
+rojo sourcemap studio/netsmoke.project.json --absolute --output .ci/netsmoke-sourcemap.json || exit 1
+luau-lsp analyze \
+	--platform=roblox \
+	--definitions=@roblox="$defs" \
+	--sourcemap=.ci/netsmoke-sourcemap.json \
+	--base-luaurc=.ci/luaurc.json \
+	studio 2>&1 | awk '!seen[$0]++'
+studio_status=${PIPESTATUS[0]}
+
+if [[ "$status" -ne 0 || "$studio_status" -ne 0 ]]; then
+	exit 1
+fi
