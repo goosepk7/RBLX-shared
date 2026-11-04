@@ -1,0 +1,95 @@
+--!strict
+local T = require("@shared/Test")
+local expect = T.expect
+
+T.describe("Test.Clock", function()
+	T.it("starts at a fixed unix time and monotonic zero", function()
+		local clock = T.Clock.new()
+		expect(clock:now()).toBe(1_700_000_000)
+		expect(clock:clock()).toBe(0)
+		clock:advance(2.5)
+		expect(clock:now()).toBe(1_700_000_002.5)
+		expect(clock:clock()).toBe(2.5)
+	end)
+
+	T.it("runs delayed callbacks at their deadline, in order", function()
+		local clock = T.Clock.new()
+		local order: { string } = {}
+		clock.task.delay(10, function()
+			table.insert(order, "b@" .. clock:clock())
+		end)
+		clock.task.delay(5, function()
+			table.insert(order, "a@" .. clock:clock())
+		end)
+		clock.task.delay(10, function()
+			table.insert(order, "c@" .. clock:clock())
+		end)
+		clock:advance(9)
+		expect(order).toEqual({ "a@5" })
+		clock:advance(1)
+		expect(order).toEqual({ "a@5", "b@10", "c@10" })
+		expect(clock:pending()).toBe(0)
+	end)
+
+	T.it("wait() inside a spawned thread yields until virtual time passes", function()
+		local clock = T.Clock.new()
+		local ticks: { number } = {}
+		clock.task.spawn(function()
+			for _ = 1, 3 do
+				clock.task.wait(60)
+				table.insert(ticks, clock:clock())
+			end
+		end)
+		expect(#ticks).toBe(0)
+		clock:advance(179)
+		expect(ticks).toEqual({ 60, 120 })
+		clock:advance(1)
+		expect(ticks).toEqual({ 60, 120, 180 })
+	end)
+
+	T.it("wait() from the test body advances synchronously and returns elapsed time", function()
+		local clock = T.Clock.new()
+		local fired = false
+		clock.task.delay(1, function()
+			fired = true
+		end)
+		local elapsed = clock:wait(2)
+		expect(fired).toBe(true)
+		expect(elapsed).toBe(2)
+	end)
+
+	T.it("defer runs on the next flush, cancel prevents a run", function()
+		local clock = T.Clock.new()
+		local ran = 0
+		clock.task.defer(function()
+			ran += 1
+		end)
+		local thread = clock.task.delay(1, function()
+			ran += 100
+		end)
+		clock.task.cancel(thread)
+		expect(ran).toBe(0)
+		clock:flush()
+		expect(ran).toBe(1)
+		clock:advance(5)
+		expect(ran).toBe(1)
+	end)
+
+	T.it("rethrows errors from clock-run threads", function()
+		local clock = T.Clock.new()
+		clock.task.delay(1, function()
+			error("autosave exploded")
+		end)
+		expect(function()
+			clock:advance(1)
+		end).toThrow("autosave exploded")
+	end)
+
+	T.it("deps() exposes now/clock/wait", function()
+		local clock = T.Clock.new({ start = 100 })
+		local deps = clock:deps()
+		deps.wait(3)
+		expect(deps.clock()).toBe(3)
+		expect(deps.now()).toBe(103)
+	end)
+end)

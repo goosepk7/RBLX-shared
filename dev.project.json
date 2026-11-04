@@ -1,0 +1,25 @@
+{
+	"name": "RBLXShared-dev",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"Packages": {
+				"$className": "Folder",
+				"RBLXShared": {
+					"$path": "default.project.json"
+				}
+			}
+		},
+		"ServerStorage": {
+			"RBLXSharedDev": {
+				"$className": "Folder",
+				"tests": {
+					"$path": "tests"
+				},
+				"sims": {
+					"$path": "sims"
+				}
+			}
+		}
+	}
+}

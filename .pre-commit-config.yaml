@@ -1,0 +1,21 @@
+# Requires `pre-commit` (pip install pre-commit) and the rokit toolchain on PATH.
+# Install once per clone: pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: stylua
+        name: StyLua
+        entry: stylua
+        language: system
+        files: \.(lua|luau)$
+      - id: selene
+        name: Selene
+        entry: selene
+        language: system
+        files: \.(lua|luau)$
+      - id: lune-tests
+        name: lune tests
+        entry: lune run tests
+        language: system
+        pass_filenames: false
+        files: \.(lua|luau|json)$

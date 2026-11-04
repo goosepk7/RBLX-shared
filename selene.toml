@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Luau type annotations and `--!strict` make these redundant or noisy.
+shadowing = "allow"

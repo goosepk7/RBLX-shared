@@ -1,0 +1,9 @@
+{
+	"languageMode": "strict",
+	"aliases": {
+		"shared": "src",
+		"tests": "tests",
+		"sims": "sims",
+		"tools": "tools"
+	}
+}
