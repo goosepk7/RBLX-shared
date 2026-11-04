@@ -38,6 +38,9 @@ export type State = {
 	purchases: number,
 	robuxSpent: number,
 	firsts: { [string]: number },
+	-- The last receipt counted, so a purchase granted by the release save (after which the
+	-- profile can't change) is counted when the player next loads.
+	lastPurchaseId: string?,
 }
 
 export type Options = {
@@ -159,6 +162,9 @@ local function userIdOf(who: any): number?
 	end
 	return nil
 end
+
+-- Which events a full queue sheds first: economy, then custom, then the funnels.
+local DROP_RANK: { [string]: number } = { economy = 0, custom = 1 }
 
 function Analytics.newState(at: number): State
 	return {
@@ -333,7 +339,19 @@ function Analytics.new(options: Options?): Analytics
 		end
 		table.insert(queue, { player = player, event = event })
 		if #queue > queueLimit then
-			table.remove(queue, 1)
+			-- Shed the oldest event of the least important kind, so a stream of economy ticks
+			-- can't push onboarding, funnel or first-milestone events out of the queue.
+			local drop, rank = 1, math.huge
+			for i, item in queue do
+				local r = DROP_RANK[item.event.kind] or 2
+				if r < rank then
+					drop, rank = i, r
+					if r == 0 then
+						break
+					end
+				end
+			end
+			table.remove(queue, drop)
 			dropped += 1
 		end
 		startLoop()
@@ -507,10 +525,49 @@ function Analytics.new(options: Options?): Analytics
 		if state then
 			state.purchases += 1
 			state.robuxSpent += robux
+			if type(receipt.PurchaseId) == "string" then
+				state.lastPurchaseId = receipt.PurchaseId
+			end
 		end
 		self:track(userId, "purchase", robux, { product = tostring(receipt.ProductId) })
 		if state then
 			self:first(userId, "purchase", { product = tostring(receipt.ProductId) })
+		end
+	end
+
+	-- Counts receipts stored after the last one analytics saw: a purchase granted by the release
+	-- save was logged then, but its counters landed after the final write. The event is not
+	-- logged again; robux for those is unknown (receipt records don't keep it).
+	local function catchUpPurchases(userId: number?, receipts: { any })
+		local state = if userId then stateOf(userId) else nil
+		if state == nil or #receipts == 0 then
+			return
+		end
+		local start: number
+		if state.lastPurchaseId == nil then
+			if state.purchases > 0 then
+				return -- counted before receipts were tracked; don't guess
+			end
+			start = 1
+		else
+			local found = nil
+			for i, r in receipts do
+				if r.purchaseId == state.lastPurchaseId then
+					found = i
+				end
+			end
+			if found == nil then
+				return -- trimmed out of the receipt history; don't guess
+			end
+			start = found + 1
+		end
+		for i = start, #receipts do
+			local r = receipts[i]
+			state.purchases += 1
+			state.lastPurchaseId = r.purchaseId
+			if state.firsts.purchase == nil then
+				state.firsts.purchase = if type(r.grantedAt) == "number" then r.grantedAt else now()
+			end
 		end
 	end
 
@@ -564,6 +621,10 @@ function Analytics.new(options: Options?): Analytics
 			self:attach(player, function()
 				return profile.data
 			end)
+			local meta = profile.meta
+			if type(meta) == "table" and type(meta.receipts) == "table" then
+				catchUpPurchases(profile.userId or userIdOf(player), meta.receipts)
+			end
 		end)
 		store.Released:Connect(function(_player: any, profile: any, reason: string)
 			local session = sessions[profile.userId]

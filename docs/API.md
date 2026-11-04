@@ -12,7 +12,7 @@ Version: 0.2.0 in progress (semver; a breaking change bumps both games in the sa
 
 Funnel and economy events for Roblox Analytics (brief §4), plus a ring buffer for the Admin
 panel. Server only; calls never yield. Events queue and a background loop sends them every 5 s
-within Roblox's budget (120 + 20 per player per minute). A full queue (1000) drops the oldest;
+within Roblox's budget (120 + 20 per player per minute). A full queue (1000) drops the oldest economy event first, then the oldest custom one, and funnel, onboarding and progression events last; a purchase granted by the release save is counted on the next load (from the profile's receipts);
 send errors are counted in diagnostics and reported (first three, then every 100th).
 
 | API | Notes |
@@ -406,7 +406,7 @@ and sends it once the value has been still for 0.4 s.
 |---|---|
 | `Settings.DEFINITIONS`, `Settings.SECTIONS` | `musicVolume`, `sfxVolume`, `uiSounds` (audio); `cameraShake` (0 to 1 in quarters), `flashes`, `haptics` (comfort); `colorblind` (`off`, `deuteranopia`, `protanopia`, `tritanopia`); `controls` (games add options); `language` (`auto`, `en`, `pt-br`, `es`). |
 | `Settings.schema({ add?, override?, remove? })` | A game's schema: add its own definitions (section `game`), change defaults or options (`override = { controls = { options = { "auto", "tap", "hold" } } }`), or drop some. Returns `{ list, byId, ids, defaults, validate, normalize }`. |
-| `Settings.remotes(schema, { context? })` | Namespace `RBLXSettings`: `Set`, `Request` (client) and `Snapshot` (server). Server and client must build it from the same schema. |
+| `Settings.remotes(schema, { context? })` | Namespace `RBLXSettings`: `Set` (a map of every change since the last send, so a reset is one message), `Request` (client) and `Snapshot` (server). Server and client must build it from the same schema. |
 | `Settings.Server.new({ store, schema?, field?, remotes?, context?, players? })` | `get`, `getAll`, `set(player, id, value)` and `Changed(player, id, value)`. Sends a snapshot on load and on request; a refused value resends the snapshot so the client snaps back. |
 | `Settings.Client.new({ schema?, remotes?, audio?, vfx?, loc?, localeId?, appliers?, sendDelay? })` | `get`, `set`, `reset(section?)`, `flush`, `apply`, `isReady`, `Changed`, `Ready`. Applies built-ins to Audio (volumes, UI sounds), VFX (shake scale, flashes), `UI.Hooks` (haptics), `UI.Theme` (palette) and Loc (language); `appliers[id]` handles game settings. |
 | `Settings.Screen.register(screens, { client, loc, name? })`, `Settings.Screen.build(options)` | The Settings screen from the kit: a header per section, Toggle/Slider/cycle button per row, Restore defaults and Done. It rebuilds itself on a language or palette change. |
@@ -598,7 +598,7 @@ UI palette and the game's accent; textures are engine particle sprites (no uploa
 | `vfx:emit(preset, partOrAttachment, count?)`, `vfx:emitAt(preset, position, count?)` | Emitters are cached per target; `emitAt` uses a temporary attachment on Terrain. Presets: `sparkle`, `confetti`, `dust`, `splash`, `embers`, `burst`, `snow`, `stars`. |
 | `VFX.definePreset(name, preset)`, `VFX.Presets.validate(name, preset)` | Game presets, namespaced (`"car.mudSpray"`). A preset with several `colors` builds one emitter per color. |
 | `vfx:highlight(target, { color?, fill?, fillTransparency?, outlineTransparency?, duration?, alwaysOnTop?, fadeIn? })` | Returns `{ instance, remove(fade?) }`. At most 24 at once (Roblox renders 31); past that the oldest goes. |
-| `vfx:shake(trauma)`, `vfx:setShakeScale(0..1)` | Trauma model (`VFX.Shake`): offset scales with trauma squared and decays; applied after the camera each frame. Scale 0 (the player's setting) turns it off. |
+| `vfx:shake(trauma)`, `vfx:setShakeScale(0..1)` | Trauma model (`VFX.Shake`): offset scales with trauma squared and decays; applied after the camera each frame; on a camera nothing rewrites each frame (Scriptable), last frame's offset is taken off first, so it doesn't drift. Scale 0 (the player's setting) turns it off. |
 | `vfx:flash(color?, { peak?, duration? })`, `vfx:setFlashesEnabled(on)` | Full-screen fade, peak opacity at most 0.85. Players can turn flashes off. |
 | `VFX.Shake.new(options).step(dt)` | The pure model, for sims and tests. |
 

@@ -267,8 +267,12 @@ function VFX.new(options: Options?): VFX
 		return #highlights
 	end
 
-	-- Camera shake: applied after the camera scripts each frame, so it never accumulates.
+	-- Camera shake: applied after the camera scripts each frame. A camera nobody rewrites each
+	-- frame (a Scriptable camera left alone) still has last frame's offset, so that's taken off
+	-- first; otherwise the offsets would add up and the camera would drift.
 	local bound = false
+	local lastShaken: CFrame? = nil
+	local lastOffset: CFrame? = nil
 	local BIND_NAME = "RBLXShared.VFX.Shake"
 
 	local function unbindShake()
@@ -289,11 +293,18 @@ function VFX.new(options: Options?): VFX
 			local sample = shakeModel:step(dt)
 			local cam = camera()
 			if cam then
-				cam.CFrame = cam.CFrame
-					* CFrame.new(sample.x, sample.y, 0)
+				local base = cam.CFrame
+				if lastShaken ~= nil and lastOffset ~= nil and base == lastShaken then
+					base = base * lastOffset:Inverse()
+				end
+				local offset = CFrame.new(sample.x, sample.y, 0)
 					* CFrame.Angles(math.rad(sample.pitch), math.rad(sample.yaw), math.rad(sample.roll))
+				local shaken = base * offset
+				cam.CFrame = shaken
+				lastShaken, lastOffset = shaken, offset
 			end
 			if not shakeModel:isActive() then
+				lastShaken, lastOffset = nil, nil
 				unbindShake()
 			end
 		end)

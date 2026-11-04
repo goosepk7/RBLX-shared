@@ -64,6 +64,7 @@
 - [x] Admin: owner whitelist, chat commands (grant, reset, teleport, kick, sim-run), data inspector with DataDiagnostics, flags, analytics feed, Admin panel
 - Weak spots, honestly: none of the SFX have been heard on a device yet (synthesized and checked for level and length only). VFX uses engine particle sprites, so splash and confetti look like sparkles until custom sprites exist. Roblox Analytics only shows data from a published place, so the dashboards are unverified until launch.
 - Weak spots, Settings and Admin: neither screen has been opened in Studio yet (built from the kit, layout unverified on a device). The colorblind palettes were picked from published colorblind-safe sets but not checked in a simulator. A palette change rebuilds the Settings screen only; other open kit screens keep their colors until they're rebuilt. Admin's `tp` without a game hook moves to another player only. The `/admin` chat command needs TextChatService (the default chat).
+- First Studio session, v0.2 checks: `TextChatCommand.Triggered` fires on the server for the server-made `/admin`; AnalyticsService accepts `session_length` flushed during PlayerRemoving and BindToClose; SoundGroup volumes follow live Settings changes; camera shake on a Scriptable camera doesn't drift (the undo relies on reading back the exact CFrame it set).
 
 ## World (`car/foundation`, used by both games)
 - [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
