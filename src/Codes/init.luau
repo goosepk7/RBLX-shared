@@ -188,6 +188,7 @@ function Codes.new(options: Options): Codes
 	assert(economy ~= nil, "Codes.new: economy is required")
 	local target: Rewards.Target = { economy = economy, shop = options.shop }
 	local reason = options.reason or "code"
+	Rewards.requireReason(economy, reason, "Codes.new")
 	local now: () -> number = options.now or os.time
 	local clock: () -> number = options.clock or os.clock
 	local storeName = options.storeName or "RBLXShared_Codes"
@@ -474,20 +475,25 @@ function Codes.new(options: Options): Codes
 				return finish(false, reasonText or "requirements", nil)
 			end
 		end
-		-- Mark first so a second request can't slip in while the use claim yields.
-		current.redeemed[code] = now()
+		-- Claim the global use before marking anything: if the player leaves while UpdateAsync
+		-- yields, the release save must not carry a redeemed mark for a reward never granted.
+		-- busy[userId] blocks a second request on this server and the session lock blocks others.
 		if d.maxUses then
 			local claimed, failure = claimUse(d)
 			if not claimed then
-				current.redeemed[code] = nil
 				return finish(false, failure, nil)
 			end
+			local after = slots:get(who)
+			if after == nil or after ~= current or not economy:isAttached(who) then
+				Log.warn(
+					"Codes",
+					"player " .. tostring(userId) .. " left while claiming " .. code .. "; one use is spent"
+				)
+				return finish(false, "notLoaded", nil)
+			end
 		end
-		local after = slots:get(who)
-		if after == nil or after ~= current or not economy:isAttached(who) then
-			-- Left while the claim yielded; the use is spent but nothing was granted.
-			return finish(false, "notLoaded", nil)
-		end
+		-- No yield from here on: mark and grant together.
+		current.redeemed[code] = now()
 		local applied = Rewards.apply(target, who, d.reward, reason)
 		if not applied.ok then
 			current.redeemed[code] = nil
