@@ -1,8 +1,12 @@
 --!strict
 --[[
 	Minimal Roblox Open Cloud HTTP client for lune tools (asset upload, DataStore backups,
-	Luau Execution). Adds the API key, retries 429 (honouring Retry-After) and 5xx with
-	exponential backoff, and decodes JSON bodies.
+	Luau Execution). Adds the API key, retries with exponential backoff, and decodes JSON bodies.
+
+	Retry modes (RequestOptions.retry):
+	  "all"   429 (honouring Retry-After), 5xx and network errors. Default for GET/HEAD/PUT/DELETE.
+	  "safe"  429 and network errors only. Default for POST/PATCH and multipart, because a 5xx on a
+	          create can mean the asset was made anyway, and retrying would upload a duplicate.
 
 	  local OpenCloud = require("./lib/opencloud")  -- from a tools/ script
 	  local client = OpenCloud.new({ apiKey = process.env.ROBLOX_API_KEY })
@@ -22,6 +26,10 @@ export type RequestOptions = {
 	query: { [string]: string }?,
 	-- Encodes `json` as the body and sets Content-Type.
 	json: any?,
+	-- See the header comment. Defaults by method.
+	retry: ("all" | "safe")?,
+	-- false sends no x-api-key (for signed CDN URLs that must not see the key). Default true.
+	auth: boolean?,
 }
 
 export type Response = {
@@ -55,8 +63,13 @@ local OpenCloud = {}
 -- Overridable for tests against a local mock server.
 OpenCloud.BASE = (require("@lune/process").env.ROBLOX_OPEN_CLOUD_BASE or "https://apis.roblox.com") :: string
 
-local function shouldRetry(status: number): boolean
-	return status == 429 or status >= 500
+local IDEMPOTENT: { [string]: boolean } = { GET = true, HEAD = true, PUT = true, DELETE = true }
+
+local function shouldRetry(status: number, mode: string): boolean
+	if status == 429 then
+		return true
+	end
+	return mode == "all" and status >= 500
 end
 
 local function retryAfter(headers: { [string]: string }): number?
@@ -82,7 +95,11 @@ function OpenCloud.new(options: Options): Client
 
 	function client.request(_self: Client, method: string, url: string, requestOptions: RequestOptions?): Response
 		local opts: RequestOptions = requestOptions or {}
-		local headers: { [string]: string } = { ["x-api-key"] = options.apiKey }
+		local headers: { [string]: string } = {}
+		if opts.auth ~= false then
+			headers["x-api-key"] = options.apiKey
+		end
+		local mode: string = opts.retry or (if IDEMPOTENT[string.upper(method)] then "all" else "safe")
 		local extraHeaders: { [string]: string } = opts.headers or {}
 		for key, value in extraHeaders do
 			headers[key] = value
@@ -104,7 +121,7 @@ function OpenCloud.new(options: Options): Client
 				query = opts.query,
 			})
 			local status = if ok then raw.statusCode else 0
-			if ok and not shouldRetry(status) then
+			if ok and not shouldRetry(status, mode) then
 				local decoded: any = nil
 				if raw.body ~= "" then
 					local decodedOk, value = pcall(function()

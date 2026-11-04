@@ -17,6 +17,12 @@
 
 	Animations cannot be uploaded through the Assets API: the tool lists them with the manual
 	steps instead of failing.
+
+	Images upload as Decals. The Decal id is kept as `decalId` and the Image id it wraps is
+	resolved (tools/lib/decal.luau) before the entry becomes "uploaded"; assetId is always the
+	Image id. If resolution fails the entry is saved as "unresolved" (renders as pending) and
+	tools/resolve_decals finishes it without re-uploading. Not yet verified against live Roblox:
+	spot-check one icon in Studio after the first real run.
 ]]
 
 local fs = require("@lune/fs")
@@ -26,6 +32,7 @@ local stdio = require("@lune/stdio")
 local task = require("@lune/task")
 
 local Args = require("./lib/args")
+local Decal = require("./lib/decal")
 local Manifest = require("./lib/manifest")
 local OpenCloud = require("./lib/opencloud")
 local Paths = require("./lib/paths")
@@ -129,6 +136,13 @@ print(string.format("%d asset(s) to upload%s", #plan, if dryRun then " (dry run)
 for _, item in plan do
 	print(string.format("  %-32s %-6s %s (%s)", item.entry.name, item.entry.kind, item.entry.path or "?", item.reason))
 end
+for _, entry in manifest.assets do
+	if entry.status == "unresolved" then
+		print(
+			string.format("note: %s is unresolved (decal %d); run tools/resolve_decals", entry.name, entry.decalId or 0)
+		)
+	end
+end
 if #manual > 0 then
 	print(string.format("%d animation(s) need manual upload:", #manual))
 	for _, entry in manual do
@@ -210,17 +224,32 @@ local function upload(entry: Manifest.Entry): (number?, string?)
 	return assetId, nil
 end
 
-local failures = 0
+local failures, unresolved = 0, 0
 for index, item in plan do
 	local entry = item.entry
 	stdio.write(string.format("[%d/%d] %s ... ", index, #plan, entry.name))
-	local assetId, err = upload(entry)
-	if assetId then
-		entry.status = "uploaded"
-		entry.assetId = assetId
+	local createdId, err = upload(entry)
+	if createdId then
 		entry.sha256 = Manifest.hashFile(entry.path :: string)
+		if entry.kind == "image" then
+			entry.decalId = createdId
+			local imageId, resolveErr = Decal.resolve(client, createdId)
+			if imageId then
+				entry.status = "uploaded"
+				entry.assetId = imageId
+				print(string.format("ok (image %d, decal %d)", imageId, createdId))
+			else
+				entry.status = "unresolved"
+				entry.assetId = nil
+				unresolved += 1
+				print(string.format("UNRESOLVED (decal %d)\n      %s", createdId, tostring(resolveErr)))
+			end
+		else
+			entry.status = "uploaded"
+			entry.assetId = createdId
+			print(string.format("ok (%d)", createdId))
+		end
 		Manifest.save(paths.manifest, manifest)
-		print(string.format("ok (%d)", assetId))
 	else
 		failures += 1
 		print("FAILED\n      " .. tostring(err))
@@ -229,7 +258,12 @@ end
 
 fs.writeFile(paths.idsModule, Manifest.renderIds(manifest, paths.manifest))
 print(string.format("wrote %s", paths.idsModule))
-print(string.format("%s  %d uploaded, %d failed", if failures == 0 then "PASS" else "FAIL", #plan - failures, failures))
-if failures > 0 then
+local done = #plan - failures - unresolved
+local verdict = if failures > 0 or unresolved > 0 then "FAIL" else "PASS"
+print(string.format("%s  %d uploaded, %d unresolved, %d failed", verdict, done, unresolved, failures))
+if unresolved > 0 then
+	print("Unresolved images were uploaded as Decals; finish them with: lune run tools/resolve_decals")
+end
+if failures > 0 or unresolved > 0 then
 	process.exit(1)
 end

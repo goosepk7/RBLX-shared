@@ -51,7 +51,7 @@ T.describe("tools/lib/opencloud", function()
 			"connection reset",
 			{ statusCode = 200, body = "{}" },
 		})
-		local res = client:request("POST", "https://x/y", { json = { k = "v" } })
+		local res = client:request("POST", "https://x/y", { json = { k = "v" }, retry = "all" })
 		expect(res.ok).toBe(true)
 		expect(res.attempts).toBe(4)
 		expect(slept).toEqual({ 7, 2, 4 })
@@ -74,6 +74,31 @@ T.describe("tools/lib/opencloud", function()
 		local final = failing:request("GET", "https://x/y")
 		expect(final.ok).toBe(false)
 		expect(final.attempts).toBe(4)
+	end)
+
+	T.it("POST defaults to safe retries: 429 and network errors, never 5xx", function()
+		local client, sent = fakeClient({
+			{ statusCode = 429, body = "", headers = { ["Retry-After"] = "0" } },
+			"connection reset",
+			{ statusCode = 502, body = "bad gateway" },
+			{ statusCode = 200, body = "{}" },
+		})
+		local res = client:request("POST", "https://x/create")
+		expect(res.ok).toBe(false)
+		expect(res.status).toBe(502)
+		expect(res.attempts).toBe(3)
+		expect(#sent).toBe(3)
+
+		local multi, multiSent = fakeClient({ { statusCode = 500, body = "" }, { statusCode = 200, body = "{}" } })
+		local upload = multi:multipart("https://x/upload", { { name = "request", content = "{}" } })
+		expect(upload.status).toBe(500)
+		expect(#multiSent).toBe(1)
+	end)
+
+	T.it("omits the api key when auth = false", function()
+		local client, sent = fakeClient({ { statusCode = 200, body = "x" } })
+		client:request("GET", "https://cdn/signed", { auth = false })
+		expect(sent[1].headers["x-api-key"]).toBeNil()
 	end)
 
 	T.it("builds multipart bodies", function()

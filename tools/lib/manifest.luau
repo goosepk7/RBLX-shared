@@ -8,8 +8,11 @@
 	  path        repo-relative file to upload (PNG/OGG/FBX/...); optional for creator-store
 	  sourceFile  optional editable source (SVG, synth script) the file is built from
 	  source      generated | creator-store | manual (default generated)
-	  status      pending | uploaded
-	  assetId     number once uploaded, else null
+	  status      pending | unresolved | uploaded
+	              unresolved: an image was uploaded as a Decal but its Image id is not known yet
+	              (run tools/resolve_decals). Renders as pending at runtime.
+	  assetId     number once uploaded, else null. For images this is the Image id, never the Decal id.
+	  decalId     images only: the Decal id Open Cloud returned (kept so the Image id can be re-resolved)
 	  sha256      hash of `path` as uploaded (uploaded) or as it should be (pending)
 	  displayName optional name shown on Roblox (default: name)
 	  meta        optional free-form table (bpm, key, loop, notes)
@@ -26,6 +29,7 @@ export type Entry = {
 	source: string?,
 	status: string,
 	assetId: number?,
+	decalId: number?,
 	sha256: string?,
 	displayName: string?,
 	meta: { [string]: any }?,
@@ -41,7 +45,7 @@ Manifest.KINDS = { image = true, audio = true, animation = true, mesh = true, vi
 Manifest.SOURCES = { generated = true, ["creator-store"] = true, manual = true }
 
 local FIELD_ORDER =
-	{ "name", "kind", "path", "sourceFile", "source", "status", "assetId", "sha256", "displayName", "meta" }
+	{ "name", "kind", "path", "sourceFile", "source", "status", "assetId", "decalId", "sha256", "displayName", "meta" }
 
 function Manifest.load(path: string): Manifest
 	if not fs.isFile(path) then
@@ -54,6 +58,9 @@ function Manifest.load(path: string): Manifest
 	for _, entry in assets do
 		if entry.assetId == nil or entry.assetId == serde.decode("json", "null") then
 			entry.assetId = nil
+		end
+		if entry.decalId == serde.decode("json", "null") then
+			entry.decalId = nil
 		end
 	end
 	return { version = 1, assets = assets }
@@ -89,12 +96,36 @@ function Manifest.validate(manifest: Manifest, checkHashes: boolean): { Problem 
 		if not Manifest.SOURCES[source] then
 			add(name, "error", "unknown source " .. tostring(source))
 		end
-		if entry.status ~= "pending" and entry.status ~= "uploaded" then
-			add(name, "error", "status must be pending or uploaded")
+		if entry.status ~= "pending" and entry.status ~= "unresolved" and entry.status ~= "uploaded" then
+			add(name, "error", "status must be pending, unresolved or uploaded")
+		end
+		if entry.decalId ~= nil then
+			if entry.kind ~= "image" then
+				add(name, "error", "decalId is only valid on image entries")
+			elseif
+				type(entry.decalId) ~= "number"
+				or entry.decalId <= 0
+				or entry.decalId ~= math.floor(entry.decalId)
+			then
+				add(name, "error", "decalId must be a positive integer")
+			end
 		end
 		if entry.status == "uploaded" then
 			if type(entry.assetId) ~= "number" or entry.assetId <= 0 or entry.assetId ~= math.floor(entry.assetId) then
 				add(name, "error", "uploaded entries need a positive integer assetId")
+			elseif entry.kind == "image" and entry.decalId ~= nil and entry.assetId == entry.decalId then
+				add(name, "error", "assetId equals decalId: the Decal id was stored instead of the Image id")
+			end
+		elseif entry.status == "unresolved" then
+			if entry.kind ~= "image" or entry.decalId == nil then
+				add(
+					name,
+					"error",
+					"unresolved entries must be images with a decalId (run: lune run tools/resolve_decals)"
+				)
+			end
+			if entry.assetId ~= nil then
+				add(name, "error", "unresolved entries must have assetId null")
 			end
 		elseif entry.assetId ~= nil then
 			add(name, "error", "pending entries must have assetId null")
@@ -113,7 +144,7 @@ function Manifest.validate(manifest: Manifest, checkHashes: boolean): { Problem 
 				if entry.sha256 == nil or entry.sha256 == "" then
 					add(name, "error", "sha256 missing (run: lune run tools/verify_assets --fix-hashes)")
 				elseif actual ~= entry.sha256 then
-					if entry.status == "uploaded" then
+					if entry.status ~= "pending" then
 						add(name, "error", "file changed since upload (run: lune run tools/upload_assets --all)")
 					else
 						add(name, "error", "sha256 is stale (run: lune run tools/verify_assets --fix-hashes)")
@@ -192,8 +223,8 @@ function Manifest.renderIds(manifest: Manifest, manifestPath: string): string
 					'\t%s = { kind = "%s", status = "%s", assetId = %s },',
 					entry.name,
 					entry.kind,
-					entry.status,
-					if entry.assetId then string.format("%d", entry.assetId) else "nil"
+					if entry.status == "uploaded" then "uploaded" else "pending",
+					if entry.status == "uploaded" and entry.assetId then string.format("%d", entry.assetId) else "nil"
 				)
 			)
 		end

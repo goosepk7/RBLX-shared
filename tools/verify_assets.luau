@@ -53,10 +53,13 @@ end
 
 local pendingCount, uploadedCount = 0, 0
 for _, entry in manifest.assets do
-	if entry.status == "pending" then
+	if entry.status ~= "uploaded" then
 		pendingCount += 1
 		if args:has("release") then
-			table.insert(problems, { name = entry.name, level = "error", message = "still pending upload" })
+			local message = if entry.status == "unresolved"
+				then "uploaded as a Decal but the Image id is unresolved (run: lune run tools/resolve_decals)"
+				else "still pending upload"
+			table.insert(problems, { name = entry.name, level = "error", message = message })
 		end
 	else
 		uploadedCount += 1

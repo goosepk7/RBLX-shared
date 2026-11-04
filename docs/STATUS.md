@@ -10,7 +10,7 @@
 - None.
 
 ## Known weak spots (tooling)
-- Image upload type is unverified until a real key exists: images go up as `Decal`, and `verify_assets --remote` will flag it if Roblox returns a non-Image id.
+- Decal → Image id resolution is unverified until a real key exists (mock-tested only). Images that fail it stay `unresolved` with a Studio fallback (`tools/resolve_decals --studio-script`). First real upload: spot-check one icon in Studio.
 - The custom lint is pattern-based, not a parser; it can miss multi-line calls. Selene and the type checker cover the rest.
 - luau-lsp cannot be built in the agents' sandbox, so strict type errors only surface in CI.
 
@@ -21,7 +21,7 @@
 - [x] Fakes: DataStoreService (failure injection, metadata, ordered stores), MarketplaceService (receipts, replay, retry), Players
 - [x] Sim harness: deterministic RNG, scheduler, synthetic players, recorder + CSV/JSON, targets, tuning helpers, Studio/Open Cloud runner shell (`lune run sims`)
 - [x] Assets: manifest-backed lookup with visible placeholders, `AssetIds.luau` generation
-- [x] Tools: `upload_assets` (Open Cloud, end-to-end tested against a mock), `verify_assets`, `gen_asset_ids`, custom lint (§9.4), shared Open Cloud client
+- [x] Tools: `upload_assets` (Open Cloud, end-to-end tested against a mock, resolves Decal → Image ids), `resolve_decals`, `verify_assets`, `gen_asset_ids`, custom lint (§9.4), shared Open Cloud client
 - [x] docs/API.md sections for Test, Sim, Assets; docs/TOOLING.md
 
 ## Core (`shared/core`)

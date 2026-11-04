@@ -12,6 +12,7 @@ the submodule: `lune run Packages/RBLXShared/tools/<tool>`; they read the game's
 | `lune run tools/gen_asset_ids [--check]` | Regenerate `AssetIds.luau` from the manifest (`--check` for CI). |
 | `lune run tools/verify_assets [--fix-hashes] [--remote] [--release]` | Validate the manifest, files, hashes and ids module; `--remote` confirms ids on Roblox; `--release` fails while anything is pending. |
 | `lune run tools/upload_assets --all [--dry-run]` | Upload pending and changed assets via Open Cloud, write ids back, regenerate ids. |
+| `lune run tools/resolve_decals [--studio-script \| --apply ids.json]` | Finish images left `unresolved` (Decal uploaded, Image id unknown) without re-uploading. |
 | `tools/ci/typecheck.sh` | Strict luau-lsp type check (needs `lune setup` first). |
 
 ## Asset manifest
@@ -43,7 +44,8 @@ the submodule: `lune run Packages/RBLXShared/tools/<tool>`; they read the game's
 | `path` | The file that gets uploaded. Not needed for `creator-store`. |
 | `sourceFile` | Editable source the file is built from (SVG, synth script). Optional. |
 | `source` | `generated` (default), `creator-store` (an existing Roblox id, no upload), `manual`. |
-| `status` / `assetId` | `pending` + `null`, or `uploaded` + the numeric id. |
+| `status` / `assetId` | `pending` + `null`, `unresolved` + `null` (images only, see below), or `uploaded` + the numeric id. For images `assetId` is always the **Image** id. |
+| `decalId` | Images only: the Decal id Open Cloud returned on upload. Never used at runtime. |
 | `sha256` | Hash of `path`. For uploaded entries a mismatch means the file changed and needs re-upload. |
 | `displayName`, `meta` | Optional (name on Roblox; bpm/key/loop notes). |
 
@@ -66,7 +68,25 @@ lune run tools/verify_assets --remote
 Commit the updated `assets/manifest.json` and `AssetIds.luau`. Animations are listed with
 manual steps: the Assets API does not accept them.
 
-**Not yet verified against live Roblox** (no key until publish): images are uploaded as
-`Decal`; `verify_assets --remote` warns if Roblox reports a type other than `Image`, which
-would mean the id needs translating before ImageLabels can use it. The request and response
-handling is covered by an end-to-end test against a local mock of the API.
+### Images: Decal id vs Image id
+
+Open Cloud uploads images as `Decal` assets, but `ImageLabel.Image` needs the id of the Image
+the Decal wraps. `upload_assets` stores the returned id as `decalId`, then asks Asset Delivery
+(`/asset-delivery-api/v1/assetId/<decalId>`) for the Decal's content and reads the texture id
+out of it. Only then does the entry become `uploaded` with `assetId` = the Image id. If that
+step fails the entry is saved as `unresolved` (it renders as a placeholder, like pending) and:
+
+```sh
+lune run tools/resolve_decals                    # retry through Open Cloud
+lune run tools/resolve_decals --studio-script    # or: paste the printed script into Studio's command bar
+lune run tools/resolve_decals --apply ids.json   # ...and apply the JSON it prints
+```
+
+`verify_assets` rejects an uploaded image whose `assetId` equals its `decalId`, and
+`--release` fails while anything is `unresolved`.
+
+**Not yet verified against live Roblox** (no key until publish). The create, poll and resolve
+sequence is covered by an end-to-end test against a local mock of the API, but the real
+endpoint's scopes and the Decal content format are assumptions. **On the first real run,
+spot-check one icon in Studio** (an ImageLabel with the new `assetId` must show the icon) and
+run `verify_assets --remote`, which warns if Roblox reports a type other than `Image`.

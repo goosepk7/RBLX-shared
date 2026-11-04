@@ -62,7 +62,7 @@ T.describe("tools/lib/manifest", function()
 		expect(text).toContain("Bad-Name: name must be snake_case")
 		expect(text).toContain("Bad-Name: sha256 is stale")
 		expect(text).toContain("k: unknown kind texture")
-		expect(text).toContain("s: status must be pending or uploaded")
+		expect(text).toContain("s: status must be pending, unresolved or uploaded")
 		expect(text).toContain("u: uploaded entries need a positive integer assetId")
 		expect(text).toContain("m: file not found")
 		expect(text).toContain("c: creator-store entries reference an existing id")
@@ -85,6 +85,63 @@ T.describe("tools/lib/manifest", function()
 			},
 		}
 		expect(problemsFor(m)[1]).toContain("file changed since upload")
+	end)
+
+	T.it("enforces decal rules: assetId is the Image id, unresolved needs a decalId", function()
+		local hash = serde.hash("sha256", "PNGDATA")
+		local png = TMP .. "/a.png"
+		local m: Manifest.Manifest = {
+			version = 1,
+			assets = {
+				{
+					name = "ok",
+					kind = "image",
+					path = png,
+					status = "uploaded",
+					assetId = 7,
+					decalId = 6,
+					sha256 = hash,
+				},
+				{
+					name = "same",
+					kind = "image",
+					path = png,
+					status = "uploaded",
+					assetId = 6,
+					decalId = 6,
+					sha256 = hash,
+				},
+				{ name = "wait", kind = "image", path = png, status = "unresolved", decalId = 6, sha256 = hash },
+				{ name = "nodecal", kind = "image", path = png, status = "unresolved", sha256 = hash },
+				{
+					name = "withid",
+					kind = "image",
+					path = png,
+					status = "unresolved",
+					assetId = 9,
+					decalId = 6,
+					sha256 = hash,
+				},
+				{ name = "snd", kind = "audio", path = png, status = "pending", decalId = 6, sha256 = hash },
+			},
+		}
+		local text = table.concat(problemsFor(m), "\n")
+		expect(text).never.toContain("ok:")
+		expect(text).never.toContain("wait:")
+		expect(text).toContain("same: assetId equals decalId")
+		expect(text).toContain("nodecal: unresolved entries must be images with a decalId")
+		expect(text).toContain("withid: unresolved entries must have assetId null")
+		expect(text).toContain("snd: decalId is only valid on image entries")
+	end)
+
+	T.it("renders unresolved entries as pending with no id", function()
+		local m: Manifest.Manifest = {
+			version = 1,
+			assets = { { name = "i", kind = "image", status = "unresolved", decalId = 6 } },
+		}
+		expect(Manifest.renderIds(m, "m.json")).toContain(
+			'\ti = { kind = "image", status = "pending", assetId = nil },'
+		)
 	end)
 
 	T.it("encodes deterministically and round-trips through load", function()
