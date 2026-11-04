@@ -42,7 +42,8 @@ T.describe("Economy.Wallet.normalize", function()
 		}
 		local problems = Wallet.normalize(wallet, ALL)
 		expect(wallet.currencies.Wins).toEqual({ balance = 0, lifetime = 0, allTime = 12, carry = 0 })
-		expect(wallet.currencies.Gems.balance).toBe(100)
+		-- Over Gems' max of 100 but not broken: the max may have been lowered. Kept.
+		expect(wallet.currencies.Gems.balance).toBe(250)
 		expect(wallet.currencies.Gems.carry).toBe(0.5)
 		expect(wallet.currencies.Speed).toEqual({ balance = 1.5, lifetime = 0, allTime = 2.25, carry = 0 })
 		-- Currencies the game no longer defines are kept, not deleted.
@@ -53,8 +54,24 @@ T.describe("Economy.Wallet.normalize", function()
 		expect(wallet.boosts.notATable).toBeNil()
 		expect(problems[1]).toMatch("^Wins%.balance was %-?nan, set to 0$")
 		expect(problems).toContain("Wins.lifetime was -4, set to 0")
-		expect(problems).toContain("Gems.balance was 250, set to 100")
-		expect(#problems).toBe(8)
+		expect(#problems).toBe(7)
+	end)
+
+	T.it("keeps a balance over a lowered max, and earning adds nothing until it drops below", function()
+		local wallet = fresh()
+		wallet.currencies.Gems.balance = 250
+		expect(#Wallet.normalize(wallet, ALL)).toBe(0)
+		expect(wallet.currencies.Gems.balance).toBe(250)
+		local over = Wallet.earn(wallet, GEMS, 10, 1, true)
+		expect(over).toEqual({ earned = 10, granted = 0, clamped = 10, balance = 250 })
+		expect(wallet.currencies.Gems.lifetime).toBe(10)
+		Wallet.spend(wallet, GEMS, 200)
+		expect(Wallet.earn(wallet, GEMS, 10, 1, true).balance).toBe(60)
+		-- Past MAX_BALANCE it is a bad write, not a lowered max.
+		wallet.currencies.Gems.balance = 1e16
+		expect(Wallet.normalize(wallet, ALL)[1]).toBe(
+			string.format("Gems.balance was %s, set to %s", tostring(1e16), tostring(Wallet.MAX_BALANCE))
+		)
 	end)
 
 	T.it("replaces tables that aren't tables", function()

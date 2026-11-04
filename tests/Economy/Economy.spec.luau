@@ -509,6 +509,19 @@ T.describe("Economy.new", function()
 		)
 		expect(make({ currencies = { { id = "Wins" } } })).toThrow("needs a displayName")
 		expect(make({ currencies = { { id = "Wins", displayName = "Wins", max = 1e16 } } })).toThrow("MAX_BALANCE")
+		expect(make({
+			currencies = {
+				{ id = "Wins", displayName = "Wins", leaderstat = true },
+				{ id = "TotalWins", displayName = "Wins", leaderstat = true },
+			},
+		})).toThrow('leaderstat currencies Wins and TotalWins share the displayName "Wins"')
+		-- Only leaderstats need distinct names.
+		expect(make({
+			currencies = {
+				{ id = "Wins", displayName = "Wins", leaderstat = true },
+				{ id = "TotalWins", displayName = "Wins", leaderstat = false },
+			},
+		})).never.toThrow()
 		expect(make({ currencies = CURRENCIES, reasons = { win = "earnz" } })).toThrow("unknown kind earnz")
 		expect(make({ currencies = CURRENCIES, reasons = { win = 5 } })).toThrow("must be a kind")
 		expect(make({ currencies = CURRENCIES, maxMultiplier = 0.5 })).toThrow("maxMultiplier")

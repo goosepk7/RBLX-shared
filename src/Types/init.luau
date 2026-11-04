@@ -27,7 +27,8 @@ export type Currency = {
 	-- Whole numbers only. Fractional earnings (from multipliers) carry over between earns.
 	-- Default true.
 	integer: boolean?,
-	-- Highest allowed balance (anti-overflow clamp). Default and maximum: Economy.MAX_BALANCE.
+	-- Highest balance earning can reach (anti-overflow clamp). Default and maximum:
+	-- Economy.MAX_BALANCE. Lowering it keeps balances already above it; they just stop growing.
 	max: number?,
 	-- Balance a brand-new wallet starts with. Default 0.
 	starting: number?,

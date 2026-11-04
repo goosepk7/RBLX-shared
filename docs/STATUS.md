@@ -45,7 +45,7 @@
 - [x] `tools/backup_profiles`: daily backups and one-player restores through Open Cloud; the scheduled workflow for game repos is in docs/TOOLING.md
 - [ ] DataDiagnostics panel UI (with Admin v0.2)
 - [x] Economy: currencies, earn/spend/grant/adjust with declared reasons, grouped multipliers (rebirth x pass x event x boost), play-time boosts saved in the wallet, fraction carry and balance caps, player attributes and leaderstats, ledger and per-reason totals, `bindStore` wiring to Data
-- [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, Util
+- [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, UI (a pointer to UI.md), Util; every name in these sections checked against the code for v0.1
 
 ## Loc (early, for the game foundations)
 - [x] Loc: per-locale string tables, `{name}` placeholders with number formats, CLDR plurals for en/pt-BR/es, source fallback, `validate` for specs, Roblox localization CSV export

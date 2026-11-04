@@ -78,7 +78,7 @@ player is one key, `Player_<userId>`, holding `{ data, meta }`.
 | `profile:saveAsync()`, `:isActive()`, `:hasReceipt(purchaseId)` | Autosave and release already cover normal play. |
 | `store:releaseAsync(player)`, `store:closeAsync(timeout?)` | A release that fails keeps the lock and retries every 10 s. `closeAsync` waits up to 25 s. |
 | `store:processReceipt(receipt, grant)` | The `ProcessReceipt` body. `grant(profile, receipt)` changes `profile.data` and may return false to decline for now. It runs at most once per PurchaseId, and `PurchaseGranted` goes back only after the grant is saved. The last 100 PurchaseIds are kept per profile. |
-| `store.Loaded`, `store.Released`, `store.ReceiptGranted` | `(player, profile)`, `(player?, profile, reason)`, `(player?, profile, receipt)`. Confirm purchases to the client and log them to analytics from `ReceiptGranted`. |
+| `store.Loaded`, `store.Released`, `store.ReceiptGranted` | `(player, profile)`, `(player?, profile, reason)`, `(player?, profile, receipt)`. `ReceiptGranted` fires once per purchase, from whichever save stores the grant (its own, Roblox's retry, an autosave or the release). Confirm purchases to the client and log them to analytics from it. |
 | `store:viewAsync(userId)`, `:updateOfflineAsync(userId, edit)`, `:removeAsync(userId)` | Support tools. An offline edit refuses while the player is online elsewhere; `removeAsync` erases the key (and kicks if loaded here). |
 | `store:getDiagnostics()`, `Data.getDiagnostics()` | The DataDiagnostics view: counters, per-profile save times, sizes and last error, the 20 most recent errors, and DataStore request budgets (`budgets.UpdateAsync` is the one every load and save spends). |
 | `Data.check(value, rootName?)`, `Data.estimateSize(value)` | `(ok, path?, reason?, size?)`: can a DataStore hold this exactly? Names the first bad path, e.g. `data.stats.speed: NaN`. |
@@ -135,9 +135,9 @@ lives in their profile at `profile.data.wallet`, so it saves and locks with the 
 
 | API | Notes |
 |---|---|
-| `Economy.new({ currencies, reasons?, multiplyWithin?, maxMultiplier?, walletField?, ledgerSize?, tickInterval?, ... })` | `currencies` are `Types.Currency` (whole numbers unless `integer = false`, optional `max`, `starting`, `leaderstat`, `icon`). `reasons` maps a name to its kind: `"earn"` (multiplied, counts toward lifetime), `"grant"` (exact and whole, never multiplied, no lifetime unless `{ kind = "grant", lifetime = true }`), `"spend"` or `"adjust"`. Defaults: `purchase`, `code`, `refund` are grants; `admin`, `rebirth` are adjustments. `maxMultiplier` 100, `ledgerSize` 50 per player, `tickInterval` 5 s. Injectable: `task`, `now`, `clock`, `players`, `createLeaderstat`. |
+| `Economy.new({ currencies, reasons?, multiplyWithin?, maxMultiplier?, walletField?, ledgerSize?, tickInterval?, ... })` | `currencies` are `Types.Currency` (whole numbers unless `integer = false`, optional `max`, `starting`, `leaderstat`, `icon`). `reasons` maps a name to its kind: `"earn"` (multiplied, counts toward lifetime), `"grant"` (exact and whole, never multiplied, no lifetime unless `{ kind = "grant", lifetime = true }`), `"spend"` or `"adjust"`. Defaults: `purchase`, `code`, `refund` are grants; `admin`, `rebirth` are adjustments. `maxMultiplier` 100, `ledgerSize` 50 per player, `tickInterval` 5 s. Two `leaderstat` currencies can't share a `displayName`, since it names the leaderstats value. Injectable: `task`, `now`, `clock`, `players`, `createLeaderstat`. |
 | `economy:bindStore(store)` | Attaches each profile as Data loads it, detaches it on release, and forgets a player's multipliers when they leave. `attach(who, data)` / `detach(who)` do it by hand (`who` is a Player or a UserId everywhere). |
-| `economy:earn(who, currency, amount, reason)` | `(granted, failure?)`: what reached the balance after multipliers, the carried fraction and the cap. Integer currencies carry fractions to the next earn, so 2 Wins at 1.25x pays 2, then 3. At the cap the balance stops but `lifetime` and `allTime` still count the whole earning. |
+| `economy:earn(who, currency, amount, reason)` | `(granted, failure?)`: what reached the balance after multipliers, the carried fraction and the cap. Integer currencies carry fractions to the next earn, so 2 Wins at 1.25x pays 2, then 3. At the cap the balance stops but `lifetime` and `allTime` still count the whole earning. A balance already over a lowered `max` is kept; earning adds nothing to it until spending brings it under. A capped earn returns `0` with no failure, so receipts check `failure == nil`. |
 | `economy:spend(who, currency, amount, reason)`, `:spendMany(who, { [currency] = amount }, reason)`, `:canAfford(...)` | `(ok, failure?)`. Never below zero. `spendMany` takes every cost or none, and its signals fire after all of them. |
 | `economy:set(who, currency, value, reason, { lifetime? })` | An `adjust`: rebirth resets (`set(p, "Wins", 0, "rebirth", { lifetime = 0 })`) and admin tools. |
 | `economy:balance(who, currency)`, `:lifetime(...)`, `:allTime(...)` | `lifetime` is since the last reset (gates, Stilts height); spending never lowers it. `allTime` never resets. |
@@ -145,7 +145,7 @@ lives in their profile at `profile.data.wallet`, so it saves and locks with the 
 | `economy:multiplier(who, currency, reason)`, `:multiplierBreakdown(...)` | The total, and `(total, { [group] = factor })` for "2.25x from passes" UI. |
 | `economy:addBoost(who, id, factor, seconds, currencies?)`, `:removeBoost(who, id)`, `:getBoosts(who)` | Boosts are saved in the wallet, sit in the `boost` group, and count down only while the player is in a server. Buying the same id again adds time. |
 | `economy:getLedger(who, limit?)`, `:getTotals()`, `:getDiagnostics()` | The newest ledger entries (`Types.LedgerEntry`), server-wide sums per currency and reason, and the Admin panel view. |
-| `economy.Changed`, `economy.Transaction`, `economy.BoostsChanged` | `(player?, userId, currency, balance, delta, reason)`, a copy of each ledger entry (for Analytics), `(player?, userId)`. |
+| `economy.Changed`, `economy.Transaction`, `economy.BoostsChanged` | `(player?, userId, currency, balance, delta, reason)`, a copy of each ledger entry (for Analytics), `(player?, userId)`. `Transaction` fires as the change is made, before the profile saves: a server that stops before saving loses the grant, and the next server grants it and fires `Transaction` again. Count purchases from the store's `ReceiptGranted`, which fires once, after the grant is saved. |
 | `Economy.attributeName(currency)`, `.lifetimeAttributeName(currency)`, `.boostAttributeName(id)`, `Economy.observe(player, currency, callback)` | Player attributes the client reads: `Currency_<id>`, `CurrencyLifetime_<id>`, and `Boost_<id>` (the unix time the boost ends). `observe` calls back now and on every change. |
 | `Economy.Wallet`, `Economy.Multipliers`, `Economy.newWallet()`, `Economy.MAX_BALANCE` | The pure math, for sims and tests. Balances stop at 1e15. |
 
@@ -174,7 +174,8 @@ local ok, failure = economy:spend(player, "Wins", 50, "shop") -- false, "insuffi
 MarketplaceService.ProcessReceipt = function(receipt)
 	return Profiles:processReceipt(receipt, function(profile, r)
 		-- A Wins pack: exact, and it never raises lifetime Wins (height).
-		return economy:earn(profile.userId, "Wins", 500, "purchase") > 0
+		local _, failure = economy:earn(profile.userId, "Wins", 500, "purchase")
+		return failure == nil -- a pack that hits the cap still counts as delivered
 	end)
 end
 ```
@@ -260,7 +261,10 @@ unauthorized, noHandler, wrongDirection }, handlerErrors, handlerSeconds, maxHan
 Tests and sims use `Net.Loopback.new()` (`.server`, `:connect(player)`, `:disconnect(player)`,
 `:injectFromClient(player, "Ns.Remote", ...)` to act as a modified client) with
 `Net.newContext({ side, transport, task?, strikes?, validateOutgoing?, defaultRateLimit? })`,
-passed as `Net.namespace(name, remotes, { context = ctx })`. Server-to-client payloads are
+passed as `Net.namespace(name, remotes, { context = ctx })`. `Net.getDefaultContext()` is the
+Roblox context for this side, built on first use (it errors outside Roblox); every namespace
+without a `context`, the kill switch and `Net.getMetrics()` use it. `Net.setDefaultContext(ctx?)`
+replaces it for a whole test or sim, and `nil` resets it. Server-to-client payloads are
 checked against their schema in Studio and tests (`validateOutgoing`). The Studio smoke place
 checks the Roblox transport and the loopback's argument rules against real remotes; see
 [Studio smoke test for Net](TOOLING.md#studio-smoke-test-for-net).
@@ -390,6 +394,46 @@ the module costs nothing. Changing a field is a breaking change.
 
 ```luau
 type StageResult = Shared.Types.StageResult
+```
+
+---
+
+## UI
+
+The shared UI kit (brief §5): theme tokens, components, screen manager and safe area. Game code
+builds every screen from it and never styles Instances directly. Full reference, including every
+component and variant: [UI.md](UI.md).
+
+| Entry point | Notes |
+|---|---|
+| `UI.Tokens`, `UI.Theme` | Tokens hold every color, size, radius, type size, timing and layer. `Theme.setGame("stilts" \| "car")` picks the accent (call it before building UI); `Theme.color(name)`, `hex`, `font(role)`, `textSize`, `variant(v)`, `onGameChanged(fn)`. |
+| `UI.Kit` | Components such as `Button`, `IconButton`, `Panel`, `Modal`, `Tabs`, `ProgressBar`, `CurrencyPill` and `ListRow`. Each has a `Variants` list; most build with `new(props)`, which returns `(root, handle)`, while one-shot pieces use `Confirm.show`, `NumberPop.spawn`, `Confetti.burst` or `Tooltip.attach`, and toasts and banners go through `area.toasts.show` and `area.banners.show`. `Icon` props take an asset name, not a content id. |
+| `UI.SafeArea.new(props?)` | The root ScreenGui inside the safe insets, scaled to the viewport, with HUD `anchors` (no bottom-left: that is the thumbstick), `banners` and `toasts` lanes, and modal layers. |
+| `UI.ScreenManager.new(area)` | `register(name, factory)`, `push`, `pop`, `replace`, `showModal` (two at most), input mode and console focus, `setCinematic(on)`. |
+| `UI.Layout` | The pure geometry behind those: viewport scale, safe-zone and thumbstick rects, anchor rects, input-mode mapping, grid columns, drawer style. |
+
+Also `UI.Color`, `Format`, `Create`, `Motion`, `Hooks` (sound and haptic events) and `Gallery`
+(the `/uigallery` chat command); see [UI.md](UI.md).
+
+```luau
+local UI = Shared.UI
+UI.Theme.setGame("stilts")
+
+local area = UI.SafeArea.new({ Name = "HUD" })
+local screens = UI.ScreenManager.new(area)
+local _, wins = UI.Kit.CurrencyPill.new({
+	Icon = "icon_wins", -- an icon still pending upload shows its placeholder card
+	Value = 0,
+	OnPlus = function()
+		screens:push("Shop", { tab = "Boosts" })
+	end,
+	Parent = area.anchors.TopLeft,
+})
+local shown = false
+Shared.Economy.observe(Players.LocalPlayer, "Wins", function(balance)
+	wins.setValue(balance, shown) -- counts up; no "+N" pop for the first value
+	shown = true
+end)
 ```
 
 ---

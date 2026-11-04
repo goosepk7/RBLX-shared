@@ -116,7 +116,10 @@ export type Diagnostics = {
 export type Economy = {
 	-- (player or nil, userId, currency, balance, delta, reason) after every balance change.
 	Changed: Signal.Signal<any, number, CurrencyId, number, number, string>,
-	-- A copy of every ledger entry, for Analytics.
+	-- A copy of every ledger entry, for Analytics. It fires as the change happens, before the
+	-- profile saves, so count purchases from the store's ReceiptGranted, which fires once the grant
+	-- is saved (a server that stops before saving loses the grant, and the next server grants and
+	-- fires Transaction again).
 	Transaction: Signal.Signal<LedgerEntry>,
 	-- (player or nil, userId) when a boost starts, gains time, ends or is removed.
 	BoostsChanged: Signal.Signal<any, number>,
@@ -321,6 +324,8 @@ function Economy.new(options: Options): Economy
 	assert(type(currencyList) == "table" and #currencyList > 0, "Economy.new: currencies must be a non-empty list")
 	local currencies: { [CurrencyId]: Currency } = {}
 	local currencyIds: { CurrencyId } = {}
+	-- leaderstats values are found by displayName, so two would share one value.
+	local leaderstatNames: { [string]: CurrencyId } = {}
 	for _, currency in currencyList do
 		assert(
 			type(currency.id) == "string" and string.match(currency.id, "^[%w_]+$") ~= nil,
@@ -331,6 +336,19 @@ function Economy.new(options: Options): Economy
 			type(currency.displayName) == "string",
 			"Economy.new: currency " .. currency.id .. " needs a displayName"
 		)
+		if currency.leaderstat then
+			local taken = leaderstatNames[currency.displayName]
+			assert(
+				taken == nil,
+				string.format(
+					"Economy.new: leaderstat currencies %s and %s share the displayName %q",
+					tostring(taken),
+					currency.id,
+					currency.displayName
+				)
+			)
+			leaderstatNames[currency.displayName] = currency.id
+		end
 		assert(
 			currency.max == nil or (Wallet.isFiniteNumber(currency.max) and currency.max <= Wallet.MAX_BALANCE),
 			"Economy.new: " .. currency.id .. ".max must be at most Economy.MAX_BALANCE"

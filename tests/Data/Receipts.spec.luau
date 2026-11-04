@@ -34,6 +34,15 @@ type Shop = {
 
 local COINS_PRODUCT = 1001
 
+-- The PurchaseIds ReceiptGranted reports on `server`, in order.
+local function confirmations(server: World.Server): { string }
+	local seen: { string } = {}
+	server.store.ReceiptGranted:Connect(function(_player: any, _profile: any, receipt: any)
+		table.insert(seen, receipt.PurchaseId)
+	end)
+	return seen
+end
+
 local function shop(): Shop
 	local world = World.new()
 	local result: Shop
@@ -91,9 +100,11 @@ T.describe("Data.Store purchases", function()
 	T.it("holds the confirmation until the grant is saved", function()
 		local s = shop()
 		local player = s.server:join(1)
+		local confirmed = confirmations(s.server)
 		s.world.dss:failNext("UpdateAsync", { times = 3 })
 		local receipt, decision = s.world.mps:purchaseProduct(player, COINS_PRODUCT)
 		expect(decision).toBe(s.world.mps.Decision.NotProcessedYet)
+		expect(#confirmed).toBe(0)
 		local profile = s.server.store:get(player)
 		assert(profile, "expected a profile")
 		-- Granted in memory and remembered, but not on disk yet.
@@ -108,18 +119,40 @@ T.describe("Data.Store purchases", function()
 		expect(s.world:stored(1).data.coins).toBe(100)
 		expect(s.world:stored(1).meta.receipts[1].purchaseId).toBe(receipt.PurchaseId)
 		expect(s.server:counters().profiles[1].unsavedReceipts).toBe(0)
+		-- Confirmed once, now that it is stored.
+		expect(confirmed).toEqual({ receipt.PurchaseId })
+		expect(s.server:counters().counters.receiptsGranted).toBe(1)
+		expect(logged("info", receipt.PurchaseId)).toBe(true)
 	end)
 
 	T.it("lets the autosave persist a grant whose own save failed", function()
 		local s = shop()
 		local player = s.server:join(1)
+		local confirmed = confirmations(s.server)
 		s.world.dss:failNext("UpdateAsync", { times = 3 })
 		local receipt = s.world.mps:purchaseProduct(player, COINS_PRODUCT)
 		s.world.clock:advance(60)
 		expect(s.world:stored(1).data.coins).toBe(100)
+		-- The autosave stored the grant, so it is confirmed there, and the replay is a duplicate.
+		expect(confirmed).toEqual({ receipt.PurchaseId })
 		expect((s.world.mps:replay(receipt))).toBe(s.world.mps.Decision.PurchaseGranted)
 		expect(#s.grants).toBe(1)
-		expect(s.server:counters().counters.receiptsDuplicate).toBe(1)
+		expect(confirmed).toEqual({ receipt.PurchaseId })
+		local counters = s.server:counters().counters
+		expect(counters.receiptsDuplicate).toBe(1)
+		expect(counters.receiptsGranted).toBe(1)
+	end)
+
+	T.it("confirms a grant that the leaving save stores", function()
+		local s = shop()
+		local player = s.server:join(1)
+		local confirmed = confirmations(s.server)
+		s.world.dss:failNext("UpdateAsync", { times = 3 })
+		local receipt = s.world.mps:purchaseProduct(player, COINS_PRODUCT)
+		expect(#confirmed).toBe(0)
+		s.server:leave(player)
+		expect(s.world:stored(1).data.coins).toBe(100)
+		expect(confirmed).toEqual({ receipt.PurchaseId })
 	end)
 
 	T.it("confirms a purchase that lands mid-save only once its own save is stored", function()
@@ -140,8 +173,10 @@ T.describe("Data.Store purchases", function()
 				second = decision
 			end)
 		end)
+		local confirmed = confirmations(s.server)
 		local _, first = s.world.mps:purchaseProduct(player, COINS_PRODUCT, { purchaseId = "first" })
 		expect(first).toBe(s.world.mps.Decision.PurchaseGranted)
+		expect(confirmed).toEqual({ "first" })
 		-- The first save stored the state from before the second grant.
 		local stored = s.world:stored(1)
 		expect(#stored.meta.receipts).toBe(1)
@@ -159,6 +194,7 @@ T.describe("Data.Store purchases", function()
 		expect(stored.meta.receipts[2].purchaseId).toBe("second")
 		expect(stored.data.coins).toBe(200)
 		expect(#s.grants).toBe(2)
+		expect(confirmed).toEqual({ "first", "second" })
 	end)
 
 	T.it("is not granted again when Roblox replays it on another server", function()
