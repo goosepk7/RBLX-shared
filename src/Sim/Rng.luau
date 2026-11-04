@@ -114,15 +114,17 @@ function RngClass.chance(self: Rng, probability: number): boolean
 	return self:next() < probability
 end
 
-function RngClass.pick<T>(self: Rng, list: { T }): T
+-- (Non-generic on purpose: generic methods on a class type break luau-lsp's old solver when
+-- the Rng is stored in other typed tables. Callers cast the result.)
+function RngClass.pick(self: Rng, list: { any }): any
 	assert(#list > 0, "Rng:pick on an empty list")
 	return list[self:int(1, #list)]
 end
 
 -- Picks a key with probability proportional to its weight. Keys are sorted first so the
 -- result never depends on table iteration order.
-function RngClass.weighted<K>(self: Rng, weights: { [K]: number }): K
-	local keys: { K } = {}
+function RngClass.weighted(self: Rng, weights: { [any]: number }): any
+	local keys: { any } = {}
 	local total = 0
 	for key, weight in weights do
 		assert(weight >= 0, "Rng:weighted weights must be non-negative")
@@ -149,7 +151,7 @@ function RngClass.weighted<K>(self: Rng, weights: { [K]: number }): K
 end
 
 -- Fisher-Yates, in place; returns the list for chaining.
-function RngClass.shuffle<T>(self: Rng, list: { T }): { T }
+function RngClass.shuffle(self: Rng, list: { any }): { any }
 	for i = #list, 2, -1 do
 		local j = self:int(1, i)
 		list[i], list[j] = list[j], list[i]
