@@ -143,6 +143,21 @@ T.describe("Data.Store purchases", function()
 		expect(counters.receiptsGranted).toBe(1)
 	end)
 
+	T.it("confirms several grants stored by one save in the order they were granted", function()
+		local s = shop()
+		local player = s.server:join(1)
+		local confirmed = confirmations(s.server)
+		local ids = { "zeta", "alpha", "mu", "beta", "omega", "chi", "kappa", "delta" }
+		s.world.dss:failNext("UpdateAsync", { times = 3 * #ids })
+		for _, id in ids do
+			s.world.mps:purchaseProduct(player, COINS_PRODUCT, { purchaseId = id })
+		end
+		expect(#confirmed).toBe(0)
+		s.world.clock:advance(60)
+		expect(s.world:stored(1).data.coins).toBe(100 * #ids)
+		expect(confirmed).toEqual(ids)
+	end)
+
 	T.it("confirms a grant that the leaving save stores", function()
 		local s = shop()
 		local player = s.server:join(1)

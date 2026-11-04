@@ -185,6 +185,33 @@ T.describe("Analytics", function()
 		expect((analytics:getState(b) :: Analytics.State).purchases).toBe(2)
 	end)
 
+	T.it("counts nothing extra on reload after one save stored several purchases", function()
+		local world, server, analytics, sent = setup()
+		world.mps.ProcessReceipt = function(receipt: any)
+			return server.store:processReceipt(receipt, function(_profile: any)
+				return true
+			end)
+		end
+		local player = server:join(1)
+		world.clock:advance(1)
+		local ids = { "zeta", "alpha", "mu", "beta", "omega", "chi" }
+		world.dss:failNext("UpdateAsync", { times = 3 * #ids })
+		for _, id in ids do
+			world.mps:purchaseProduct(player, 77, { purchaseId = id })
+		end
+		world.clock:advance(60) -- the autosave stores all six
+		local state = analytics:getState(player) :: Analytics.State
+		expect(state.purchases).toBe(#ids)
+		expect(state.lastPurchaseId).toBe("chi")
+		server:leave(player)
+		world.clock:advance(1)
+		local again = server:join(1)
+		world.clock:advance(1)
+		expect((analytics:getState(again) :: Analytics.State).purchases).toBe(#ids)
+		expect(#named(sent, "purchase")).toBe(#ids)
+		expect(#named(sent, "first_purchase")).toBe(1)
+	end)
+
 	T.it("maps economy transactions to sources and sinks, and skips adjustments", function()
 		local world, server, analytics, sent = setup()
 		local economy = Economy.new({
