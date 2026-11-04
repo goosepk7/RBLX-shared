@@ -181,6 +181,31 @@ end
 
 ---
 
+## Loc
+
+Every player-facing string goes through Loc (brief §3.1). A game declares one string table per
+locale in code; Loc fills placeholders, picks plural forms, formats numbers for the locale and
+falls back to the source locale. Pure; works under lune.
+
+| API | Notes |
+|---|---|
+| `Loc.new({ tables, source?, locale? })` | `tables[locale][key]` is a string or a plural entry `{ one = ..., other = ... }`. `source` defaults to `"en"` and must have a table. |
+| `loc:t(key, args?)` | `{name}` inserts `args.name` (numbers grouped: `1,234`, `1.234` in pt-br/es); `{name:compact}` (1.2K / 1,2K), `{name:grouped}`, `{name:raw}`. A plural entry with `args.count` picks its form. Missing in the locale: the source's text. Missing everywhere: the key itself, with one warning. |
+| `loc:plural(key, count, args?)` | CLDR "one"/"other": en and es one = 1; pt-br one = 0 or 1. `{count}` is filled. |
+| `loc:setLocale(id)`, `:getLocale()`, `:onLocaleChanged(fn)` | `setLocale` takes a Roblox `LocaleId` (`"pt-br"`, `"es-mx"`) and picks the closest table; returns it. `onLocaleChanged` returns an unsubscribe function. |
+| `loc:number(n)`, `:compact(n)`, `:grouped(n)`, `loc:has(key)` | Locale-aware wrappers over `UI.Format`. |
+| `Loc.normalize(localeId, available?)`, `Loc.pluralCategory(locale, n)`, `Loc.interpolate(text, args, locale?)`, `Loc.placeholders(text)` | The pure pieces. `Loc.SUPPORTED` is `{ "en", "pt-br", "es" }`. |
+| `Loc.validate(tables, source?)` | Issues `{ locale, key, kind, detail? }` with kind `missing`, `extra`, `placeholders`, `pluralForms`, `badEntry`. Games assert it is empty (or only `missing` while translations are pending) in a spec. |
+| `Loc.toCsv(tables, source?)` | Roblox localization-table CSV (Key, Source, Context, Example, one column per locale) for importing into the experience's cloud table. |
+
+```luau
+local loc = Shared.Loc.new({ tables = require(ReplicatedStorage.Stilts.Strings) })
+loc:setLocale(Players.LocalPlayer.LocaleId)
+title.Text = loc:t("win.title", { wins = 2 }) -- "+2 WINS"
+```
+
+---
+
 ## Net
 
 Every remote in both games goes through Net (brief §3.3). Declare remotes once in a module both
