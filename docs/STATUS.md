@@ -12,7 +12,10 @@
 ## Known weak spots (tooling)
 - Decal → Image id resolution is unverified until a real key exists (mock-tested only). Images that fail it stay `unresolved` with a Studio fallback (`tools/resolve_decals --studio-script`). First real upload: spot-check one icon in Studio.
 - The custom lint is pattern-based, not a parser; it can miss multi-line calls. Selene and the type checker cover the rest.
-- luau-lsp cannot be built in the agents' sandbox, so strict type errors only surface in CI.
+- Since 2026-11-04 the agents' sandbox can download the luau-lsp 1.70.0 release, so the strict type check runs locally too; Selene's Roblox std still can't be generated there.
+
+## Known weak spots (core)
+- `Net.RobloxTransport` (the RemoteEvent wiring) can't run under lune; every test goes through the loopback transport, which mirrors Roblox's documented argument rules. A one-click Studio smoke script lands before the games wire Net up.
 
 ## Tooling, CI, harness (`shared/tooling`)
 - [x] Repo skeleton: Rojo projects, wally.toml, rokit toolchain pins, StyLua, Selene, `.luaurc`, pre-commit
@@ -25,7 +28,13 @@
 - [x] docs/API.md sections for Test, Sim, Assets; docs/TOOLING.md
 
 ## Core (`shared/core`)
-- [ ] Types, Net, Data, Economy
+- [x] Types: shared Luau types for economy, data, progression, monetization and assets
+- [x] Signal and Util (Log, Deep, Roblox helpers)
+- [x] AntiExploit: strike registry, three strikes flags, flag log for the Admin panel
+- [x] Net: typed remotes, schema validation, rate limits, strikes for malformed traffic, local and cross-server kill switch, metrics, loopback transport for tests
+- [ ] Data: session-locked profiles, autosave, retries, migrations, idempotent receipts, diagnostics, `tools/backup_profiles`
+- [ ] Economy: currencies, earn and spend, multipliers, boosts, leaderstats
+- [x] docs/API.md sections for AntiExploit, Net, Signal, Types, Util (Data and Economy land with their modules)
 
 ## UI kit (`shared/ui`)
 - [ ] Theme tokens, kit components, gallery, icons

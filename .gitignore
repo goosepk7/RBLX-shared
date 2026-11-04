@@ -25,3 +25,6 @@
 
 # Sim outputs (sims commit what matters into docs/TUNING.md)
 /sims/out/
+
+# Type-check scratch (tools/ci/typecheck.sh)
+/.ci/

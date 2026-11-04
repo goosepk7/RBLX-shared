@@ -13,9 +13,14 @@
 local RBLXShared = {
 	VERSION = "0.1.0",
 
+	AntiExploit = require("@self/AntiExploit"),
 	Assets = require("@self/Assets"),
+	Net = require("@self/Net"),
+	Signal = require("@self/Signal"),
 	Sim = require("@self/Sim"),
 	Test = require("@self/Test"),
+	Types = require("@self/Types"),
+	Util = require("@self/Util"),
 }
 
 return RBLXShared
