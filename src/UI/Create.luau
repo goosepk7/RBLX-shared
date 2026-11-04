@@ -39,15 +39,15 @@ function Create.new(className: string, props: Props?, children: any?): any
 	return inst
 end
 
-function Create.corner(radius: number): UICorner
+function Create.corner(radius: number): Instance
 	return Create.new("UICorner", { CornerRadius = UDim.new(0, radius) })
 end
 
-function Create.pill(): UICorner
+function Create.pill(): Instance
 	return Create.new("UICorner", { CornerRadius = UDim.new(1, 0) })
 end
 
-function Create.stroke(colorName: Theme.ColorName, thickness: number, transparency: number?): UIStroke
+function Create.stroke(colorName: Theme.ColorName, thickness: number, transparency: number?): Instance
 	return Create.new("UIStroke", {
 		Color = Theme.color(colorName),
 		Thickness = thickness,
@@ -58,7 +58,7 @@ function Create.stroke(colorName: Theme.ColorName, thickness: number, transparen
 end
 
 --- Text outline (UIStroke in Contextual mode on a TextLabel strokes the glyphs).
-function Create.textStroke(colorName: Theme.ColorName, thickness: number?, transparency: number?): UIStroke
+function Create.textStroke(colorName: Theme.ColorName, thickness: number?, transparency: number?): Instance
 	return Create.new("UIStroke", {
 		Color = Theme.color(colorName),
 		Thickness = thickness or Tokens.border.numberStroke,
@@ -68,7 +68,7 @@ function Create.textStroke(colorName: Theme.ColorName, thickness: number?, trans
 	})
 end
 
-function Create.padding(top: number, right: number?, bottom: number?, left: number?): UIPadding
+function Create.padding(top: number, right: number?, bottom: number?, left: number?): Instance
 	local r = right or top
 	return Create.new("UIPadding", {
 		PaddingTop = UDim.new(0, top),
@@ -78,7 +78,7 @@ function Create.padding(top: number, right: number?, bottom: number?, left: numb
 	})
 end
 
-function Create.list(direction: "Horizontal" | "Vertical", gap: number, hAlign: string?, vAlign: string?): UIListLayout
+function Create.list(direction: "Horizontal" | "Vertical", gap: number, hAlign: string?, vAlign: string?): Instance
 	return Create.new("UIListLayout", {
 		FillDirection = (Enum.FillDirection :: any)[direction],
 		Padding = UDim.new(0, gap),

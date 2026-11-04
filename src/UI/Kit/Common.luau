@@ -161,7 +161,7 @@ export type EdgeFace = {
 --- Builds the signature 3D construction: a darker Edge frame peeking out
 --- below a Face. Root height = height + edge.
 function Common.edgeFace(opts: EdgeFaceOptions): EdgeFace
-	local function cornerFor(): UICorner
+	local function cornerFor(): Instance
 		return if opts.radius then Create.corner(opts.radius) else Create.pill()
 	end
 	local root = Create.group({
