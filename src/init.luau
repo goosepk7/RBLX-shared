@@ -39,6 +39,7 @@ local RBLXShared = {
 	Sim = require("@self/Sim"),
 	Strings = require("@self/Strings"),
 	Test = require("@self/Test"),
+	TextFilter = require("@self/TextFilter"),
 	Tutorial = require("@self/Tutorial"),
 	Types = require("@self/Types"),
 	UI = require("@self/UI"),

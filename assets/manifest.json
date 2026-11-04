@@ -61,6 +61,46 @@
       "sha256": "a9c2db266b8672cc7bd92b6e90b7b37cc61e1633e6c3d0f78f982eb2d0f4171d"
     },
     {
+      "name": "icon_copy",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_copy.png",
+      "sourceFile": "assets/icons/svg/icon_copy.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "153005afce38083fff96c62aac49bbbdd8c3fe33ae64f84c98b3ce53adfbf399"
+    },
+    {
+      "name": "icon_copy_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_copy.png",
+      "sourceFile": "assets/icons/svg/icon_copy.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "2b4f0158ff5c0225a5cc718435707d3781fc02718e6c256f93bf51b010e074d0"
+    },
+    {
+      "name": "icon_edit",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_edit.png",
+      "sourceFile": "assets/icons/svg/icon_edit.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "d3af4d014ffaee80233c59725cfb345aefb5bbdefaaa7abad9697e0e8da052a0"
+    },
+    {
+      "name": "icon_edit_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_edit.png",
+      "sourceFile": "assets/icons/svg/icon_edit.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "70b57274fd98f08ae70671a6e64e66ea1512e1b9f11c192814b2630790f9e950"
+    },
+    {
       "name": "icon_event",
       "kind": "image",
       "path": "assets/icons/png/256/icon_event.png",
@@ -181,6 +221,46 @@
       "sha256": "1da723edb31e149b1485a0c53a03ca81d4c2aa2070f864ffeffd85dcda94b589"
     },
     {
+      "name": "icon_redo",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_redo.png",
+      "sourceFile": "assets/icons/svg/icon_redo.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "7eb35c63efdf0d596f409e013d3706cb7db8252efcb2dac164ab03727d890277"
+    },
+    {
+      "name": "icon_redo_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_redo.png",
+      "sourceFile": "assets/icons/svg/icon_redo.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "07a0be577f815acb93d0707cad92bb6f73506f04971b8e9dc89a0223e906dcc4"
+    },
+    {
+      "name": "icon_rotate",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_rotate.png",
+      "sourceFile": "assets/icons/svg/icon_rotate.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "4ce253cbe5b9dc6f17ea96d951358e971caa7e49f01aeeeec09c0831563a63bd"
+    },
+    {
+      "name": "icon_rotate_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_rotate.png",
+      "sourceFile": "assets/icons/svg/icon_rotate.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "bbd3beb90da9ed055746ea69acc642e1b5a8a34982fe060a42073fcd124feda1"
+    },
+    {
       "name": "icon_settings",
       "kind": "image",
       "path": "assets/icons/png/256/icon_settings.png",
@@ -259,6 +339,46 @@
       "status": "pending",
       "assetId": null,
       "sha256": "432a8d84657a3a69aa1a0f923353c0883c69215964b14863115257ab12183236"
+    },
+    {
+      "name": "icon_trash",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_trash.png",
+      "sourceFile": "assets/icons/svg/icon_trash.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "77cceaf55aa59f92ca61b300e1408b267f4a9f3a313645bd0be4e5f987912f54"
+    },
+    {
+      "name": "icon_trash_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_trash.png",
+      "sourceFile": "assets/icons/svg/icon_trash.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "7eb9eaad1f9f1053b955758544dce8e5c3c73c01d469311e5f584a353b5af23d"
+    },
+    {
+      "name": "icon_undo",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_undo.png",
+      "sourceFile": "assets/icons/svg/icon_undo.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "2c92c3f9b6b44f2f52c7debea7ae837fe89f70ad297f4367261b1f6b4fc7ae13"
+    },
+    {
+      "name": "icon_undo_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_undo.png",
+      "sourceFile": "assets/icons/svg/icon_undo.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "542b9e21d02c4f7bf00555c160e63cb957c0a328ea48c7cddb394aab863cd853"
     },
     {
       "name": "icon_warning",

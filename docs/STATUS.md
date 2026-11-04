@@ -93,6 +93,10 @@
 ## Car builder support (`car/builder`)
 - [x] `Util.Bytes` (varint/zigzag writer and bounded reader), `Util.Base64` (RFC 4648, URL-safe, strict decode), `Util.Hash` (FNV-1a 32/64, exact): the blueprint codec and share codes
 - [x] `History`: snapshot undo/redo with labels, a step limit and no-op detection
+- [x] `TextFilter`: `clean` (UTF-8, control and invisible characters, whitespace, length in characters) and `broadcast` filtering through TextService with retries, a cache, and a closed failure; for vehicle and blueprint names (§3.4)
+- [x] `UI.Gestures`: tap, long press, drag, and two-finger pinch with movement and twist, as a pure recognizer (the builder's drag-to-place, pinch-zoom, two-finger orbit, long-press menu)
+- [x] Editor icons: `icon_undo`, `icon_redo`, `icon_rotate`, `icon_trash`, `icon_copy`, `icon_edit` (SVG + 256/64 PNG, in the manifest, pending upload)
+- Weak spot: `TextFilter`'s TextService call is mock-tested only. First Studio session: name a car with a word the filter hashes and check the result comes back with `#`.
 
 ## World (`car/foundation`, used by both games)
 - [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
@@ -103,8 +107,8 @@
 - [x] Kit: Button, IconButton, Chip, Card, Panel, Modal, Drawer, Confirm, Tabs, ProgressBar, Stat, CurrencyPill, ListRow, Grid, Tooltip, Toast, Banner, NumberPop, Confetti
 - [x] SafeArea (notch + topbar insets, viewport UIScale, HUD anchors) and ScreenManager (push/pop, 2-modal cap, input mode, console focus, cinematic mode)
 - [x] `/uigallery`: every component and variant, Stilts/Car accent toggle
-- [x] 16 core icons (SVG source + 256/64 PNG) and `tools/rasterize.py`
-- [x] Icon entries in `assets/manifest.json` (32: 256 px + `_64`, pending upload); kit `Icon` props take asset names and show the placeholder card until uploaded
+- [x] 22 core icons (SVG source + 256/64 PNG) and `tools/rasterize.py`
+- [x] Icon entries in `assets/manifest.json` (44: 256 px + `_64`, pending upload); kit `Icon` props take asset names and show the placeholder card until uploaded
 - [ ] Upload the core icons (`tools/upload_assets`, needs the Open Cloud key)
 - [x] Wire `Hooks.setSoundHandler` from shared Audio (`audio:bindKit()`)
 - Weak spots, honestly: the kit has not been seen in Studio yet. Layout and press feel are written to spec but unverified on a device until the owner opens `/uigallery`. Haptics on phones depend on Roblox's touch motor support, which is limited.
