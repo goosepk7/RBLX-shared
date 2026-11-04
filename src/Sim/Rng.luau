@@ -14,24 +14,12 @@
 	stream never changes another stream's numbers. This keeps sims comparable across edits.
 ]]
 
-export type Rng = {
-	seed: string,
-	nextU32: (self: Rng) -> number,
-	next: (self: Rng) -> number,
-	range: (self: Rng, min: number, max: number) -> number,
-	int: (self: Rng, min: number, max: number) -> number,
-	chance: (self: Rng, probability: number) -> boolean,
-	pick: <T>(self: Rng, list: { T }) -> T,
-	weighted: <K>(self: Rng, weights: { [K]: number }) -> K,
-	shuffle: <T>(self: Rng, list: { T }) -> { T },
-	normal: (self: Rng, mean: number?, stddev: number?) -> number,
-	exponential: (self: Rng, mean: number) -> number,
-	jitter: (self: Rng, value: number, fraction: number) -> number,
-	fork: (self: Rng, label: string | number) -> Rng,
-	clone: (self: Rng) -> Rng,
-	getState: (self: Rng) -> { number },
-	setState: (self: Rng, state: { number }) -> (),
-}
+type RngData = { seed: string, _s: { number } }
+
+local RngClass = {}
+RngClass.__index = RngClass
+
+export type Rng = typeof(setmetatable({} :: RngData, RngClass))
 
 local TWO_32 = 4294967296
 
@@ -79,126 +67,131 @@ end
 
 function Rng.new(seed: (string | number)?): Rng
 	local text = seedText(seed or 0)
-	local s0, s1, s2, s3
 	local state = hashString(text)
-	s0, state = splitmix32(state)
-	s1, state = splitmix32(state)
-	s2, state = splitmix32(state)
-	s3, state = splitmix32(state)
-	if s0 == 0 and s1 == 0 and s2 == 0 and s3 == 0 then
-		s0 = 1 -- all-zero state is the one invalid xoshiro state
+	local words = table.create(4, 0)
+	for i = 1, 4 do
+		words[i], state = splitmix32(state)
 	end
-
-	local self = { seed = text } :: Rng
-
-	function self.nextU32(_self: Rng): number
-		local result = imul(bit32.lrotate(imul(s1, 5), 7), 9)
-		local t = bit32.lshift(s1, 9)
-		s2 = bit32.bxor(s2, s0)
-		s3 = bit32.bxor(s3, s1)
-		s1 = bit32.bxor(s1, s2)
-		s0 = bit32.bxor(s0, s3)
-		s2 = bit32.bxor(s2, t)
-		s3 = bit32.lrotate(s3, 11)
-		return result
+	if words[1] == 0 and words[2] == 0 and words[3] == 0 and words[4] == 0 then
+		words[1] = 1 -- all-zero state is the one invalid xoshiro state
 	end
+	return setmetatable({ seed = text, _s = words }, RngClass)
+end
 
-	function self.next(r: Rng): number
-		-- 53 bits of randomness from two draws: 27 high + 26 low.
-		local a = bit32.rshift(r:nextU32(), 5)
-		local b = bit32.rshift(r:nextU32(), 6)
-		return (a * 67108864 + b) / 9007199254740992
-	end
+function RngClass.nextU32(self: Rng): number
+	local st = self._s
+	local s0, s1, s2, s3 = st[1], st[2], st[3], st[4]
+	local result = imul(bit32.lrotate(imul(s1, 5), 7), 9)
+	local t = bit32.lshift(s1, 9)
+	s2 = bit32.bxor(s2, s0)
+	s3 = bit32.bxor(s3, s1)
+	s1 = bit32.bxor(s1, s2)
+	s0 = bit32.bxor(s0, s3)
+	s2 = bit32.bxor(s2, t)
+	s3 = bit32.lrotate(s3, 11)
+	st[1], st[2], st[3], st[4] = s0, s1, s2, s3
+	return result
+end
 
-	function self.range(r: Rng, min: number, max: number): number
-		return min + (max - min) * r:next()
-	end
+-- Float in [0, 1) with 53 bits of randomness from two draws (27 high + 26 low).
+function RngClass.next(self: Rng): number
+	local a = bit32.rshift(self:nextU32(), 5)
+	local b = bit32.rshift(self:nextU32(), 6)
+	return (a * 67108864 + b) / 9007199254740992
+end
 
-	function self.int(r: Rng, min: number, max: number): number
-		assert(max >= min, "Rng:int expects max >= min")
-		return min + math.floor(r:next() * (max - min + 1))
-	end
+function RngClass.range(self: Rng, min: number, max: number): number
+	return min + (max - min) * self:next()
+end
 
-	function self.chance(r: Rng, probability: number): boolean
-		return r:next() < probability
-	end
+-- Integer in [min, max], inclusive.
+function RngClass.int(self: Rng, min: number, max: number): number
+	assert(max >= min, "Rng:int expects max >= min")
+	return min + math.floor(self:next() * (max - min + 1))
+end
 
-	function self.pick<T>(r: Rng, list: { T }): T
-		assert(#list > 0, "Rng:pick on an empty list")
-		return list[r:int(1, #list)]
-	end
+function RngClass.chance(self: Rng, probability: number): boolean
+	return self:next() < probability
+end
 
-	function self.weighted<K>(r: Rng, weights: { [K]: number }): K
-		-- Keys are sorted so the result does not depend on table iteration order.
-		local keys: { K } = {}
-		local total = 0
-		for key, weight in weights do
-			assert(weight >= 0, "Rng:weighted weights must be non-negative")
-			if weight > 0 then
-				table.insert(keys, key)
-				total += weight
-			end
+function RngClass.pick<T>(self: Rng, list: { T }): T
+	assert(#list > 0, "Rng:pick on an empty list")
+	return list[self:int(1, #list)]
+end
+
+-- Picks a key with probability proportional to its weight. Keys are sorted first so the
+-- result never depends on table iteration order.
+function RngClass.weighted<K>(self: Rng, weights: { [K]: number }): K
+	local keys: { K } = {}
+	local total = 0
+	for key, weight in weights do
+		assert(weight >= 0, "Rng:weighted weights must be non-negative")
+		if weight > 0 then
+			table.insert(keys, key)
+			total += weight
 		end
-		assert(total > 0, "Rng:weighted needs at least one positive weight")
-		table.sort(keys, function(a: any, b: any)
-			if type(a) == type(b) and (type(a) == "number" or type(a) == "string") then
-				return a < b
-			end
-			return tostring(a) < tostring(b)
-		end)
-		local roll = r:next() * total
-		for _, key in keys do
-			roll -= weights[key]
-			if roll < 0 then
-				return key
-			end
+	end
+	assert(total > 0, "Rng:weighted needs at least one positive weight")
+	table.sort(keys, function(a: any, b: any)
+		if type(a) == type(b) and (type(a) == "number" or type(a) == "string") then
+			return a < b
 		end
-		return keys[#keys]
-	end
-
-	function self.shuffle<T>(r: Rng, list: { T }): { T }
-		for i = #list, 2, -1 do
-			local j = r:int(1, i)
-			list[i], list[j] = list[j], list[i]
+		return tostring(a) < tostring(b)
+	end)
+	local roll = self:next() * total
+	for _, key in keys do
+		roll -= weights[key]
+		if roll < 0 then
+			return key
 		end
-		return list
 	end
+	return keys[#keys]
+end
 
-	function self.normal(r: Rng, mean: number?, stddev: number?): number
-		local u1 = 1 - r:next() -- (0, 1]
-		local u2 = r:next()
-		local z = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
-		return (mean or 0) + z * (stddev or 1)
+-- Fisher-Yates, in place; returns the list for chaining.
+function RngClass.shuffle<T>(self: Rng, list: { T }): { T }
+	for i = #list, 2, -1 do
+		local j = self:int(1, i)
+		list[i], list[j] = list[j], list[i]
 	end
+	return list
+end
 
-	function self.exponential(r: Rng, mean: number): number
-		return -mean * math.log(1 - r:next())
-	end
+-- Box-Muller.
+function RngClass.normal(self: Rng, mean: number?, stddev: number?): number
+	local u1 = 1 - self:next() -- (0, 1]
+	local u2 = self:next()
+	local z = math.sqrt(-2 * math.log(u1)) * math.cos(2 * math.pi * u2)
+	return (mean or 0) + z * (stddev or 1)
+end
 
-	-- value * (1 ± fraction), uniform.
-	function self.jitter(r: Rng, value: number, fraction: number): number
-		return value * (1 + r:range(-fraction, fraction))
-	end
+function RngClass.exponential(self: Rng, mean: number): number
+	return -mean * math.log(1 - self:next())
+end
 
-	function self.fork(r: Rng, label: string | number): Rng
-		return Rng.new(r.seed .. "/" .. seedText(label))
-	end
+-- value * (1 ± fraction), uniform.
+function RngClass.jitter(self: Rng, value: number, fraction: number): number
+	return value * (1 + self:range(-fraction, fraction))
+end
 
-	function self.getState(_self: Rng): { number }
-		return { s0, s1, s2, s3 }
-	end
+-- Independent child stream derived from this stream's seed and the label.
+function RngClass.fork(self: Rng, label: string | number): Rng
+	return Rng.new(self.seed .. "/" .. seedText(label))
+end
 
-	function self.setState(_self: Rng, state: { number })
-		s0, s1, s2, s3 = state[1], state[2], state[3], state[4]
-	end
+function RngClass.getState(self: Rng): { number }
+	return table.clone(self._s)
+end
 
-	function self.clone(r: Rng): Rng
-		local copy = Rng.new(r.seed)
-		copy:setState(r:getState())
-		return copy
-	end
+function RngClass.setState(self: Rng, state: { number })
+	assert(#state == 4, "Rng:setState expects four words")
+	self._s = table.clone(state)
+end
 
-	return self
+function RngClass.clone(self: Rng): Rng
+	local copy = Rng.new(self.seed)
+	copy:setState(self:getState())
+	return copy
 end
 
 return Rng

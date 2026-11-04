@@ -28,7 +28,8 @@ end)
 
 T.describe("Sim.Json", function()
 	T.it("encodes with sorted keys and stable numbers", function()
-		local text = Sim.Json.encode({ b = 1, a = { 1, 2.5, "x" }, c = true, d = Sim.Json.object({}) })
+		local mixed: { any } = { 1, 2.5, "x" }
+		local text = Sim.Json.encode({ b = 1, a = mixed, c = true, d = Sim.Json.object({}) })
 		expect(text).toBe('{"a":[1,2.5,"x"],"b":1,"c":true,"d":{}}')
 		expect(Sim.Json.encode('q"\n')).toBe('"q\\"\\n"')
 		expect(Sim.Json.encode({})).toBe("[]")

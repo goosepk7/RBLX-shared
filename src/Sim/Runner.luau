@@ -94,10 +94,11 @@ end
 
 function Runner.run(definition: Definition, options: RunOptions?): Result
 	local opts: RunOptions = options or {}
-	local out = opts.output or print
+	local out: (string) -> () = if opts.output then opts.output else print
 	local seed = opts.seed or definition.seed or definition.name
 	local params: { [string]: any } = table.clone(definition.params or {})
-	for key, value in opts.params or {} do
+	local overrides: { [string]: any } = opts.params or {}
+	for key, value in overrides do
 		params[key] = value
 	end
 
@@ -200,7 +201,7 @@ function Runner.runAll(definitions: { Definition }, options: RunOptions?, filter
 			end
 		end
 	end
-	local out = (options and options.output) or print
+	local out: (string) -> () = if options and options.output then options.output else print
 	if not (options and options.quiet) then
 		out(
 			string.format(
