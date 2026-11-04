@@ -24,6 +24,7 @@ local RBLXShared = {
 	Data = require("@self/Data"),
 	Economy = require("@self/Economy"),
 	Events = require("@self/Events"),
+	History = require("@self/History"),
 	Leaderboards = require("@self/Leaderboards"),
 	Loc = require("@self/Loc"),
 	Net = require("@self/Net"),
