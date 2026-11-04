@@ -2,9 +2,8 @@
 --[[
 	Number formatting for UI surfaces (pills, stats, number pops).
 
-	Loc (shared v0.2) will own locale-aware formatting; when it lands, Loc
-	should call into this module or replace it behind the same functions so
-	component code does not change.
+	Loc wraps these for locale separators (`loc:compact`, `loc:grouped`); the
+	kit itself formats with the English separators.
 ]]
 
 local Format = {}

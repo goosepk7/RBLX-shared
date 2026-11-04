@@ -47,6 +47,11 @@
 - [x] Economy: currencies, earn/spend/grant/adjust with declared reasons, grouped multipliers (rebirth x pass x event x boost), play-time boosts saved in the wallet, fraction carry and balance caps, player attributes and leaderstats, ledger and per-reason totals, `bindStore` wiring to Data
 - [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, UI (a pointer to UI.md), Util; every name in it checked against the code for v0.1
 
+## Loc (early, for the game foundations)
+- [x] Loc: per-locale string tables, `{name}` placeholders with number formats, CLDR plurals for en/pt-BR/es, source fallback, `validate` for specs, Roblox localization CSV export
+- Weak spot: kit components (CurrencyPill, Stat, NumberPop) still format with English separators (1.2K, not 1,2K) because they call `UI.Format` directly. Fix with Settings in v0.2 by routing the kit through the active Loc.
+- [ ] Translator workflow and cloud table sync (v0.2, with Settings for a language override)
+
 ## UI kit (`shared/ui`)
 - [x] Theme tokens (base palette + Stilts/Car accents), fonts, type scale, shapes, motion (`src/UI/Tokens.luau`)
 - [x] Kit: Button, IconButton, Chip, Card, Panel, Modal, Drawer, Confirm, Tabs, ProgressBar, Stat, CurrencyPill, ListRow, Grid, Tooltip, Toast, Banner, NumberPop, Confetti
