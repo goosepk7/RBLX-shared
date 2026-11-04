@@ -6,6 +6,9 @@
 
 		local root, bar = Kit.ProgressBar.new({ Value = 0.4, Segments = 5, Label = "24 / 60" })
 		bar.setValue(0.6)
+
+	`Bipolar = true` takes a value in -1..1 and fills from the center tick toward either end:
+	a lean or balance meter ("tipping left / right"), a tug of war.
 ]]
 
 local Common = require("./Common")
@@ -24,7 +27,8 @@ export type Props = {
 	Position: UDim2?,
 	AnchorPoint: Vector2?,
 	Parent: Instance?,
-	Value: number, -- 0..1
+	Value: number, -- 0..1, or -1..1 when Bipolar
+	Bipolar: boolean?,
 	Variant: Variant?,
 	Segments: number?, -- draws Segments-1 ticks
 	Label: string?,
@@ -39,6 +43,18 @@ export type Handle = {
 }
 
 local ProgressBar = {}
+
+--- The fill's x position and width (scale of the track) for a value. Pure; tested under lune.
+function ProgressBar.fillSpan(value: number, bipolar: boolean): (number, number)
+	if value ~= value then
+		value = 0
+	end
+	if bipolar then
+		local v = math.clamp(value, -1, 1)
+		return 0.5 + math.min(v, 0) / 2, math.abs(v) / 2
+	end
+	return 0, math.clamp(value, 0, 1)
+end
 
 ProgressBar.Variants = { "Primary", "Secondary", "Success", "Danger", "Warning", "Info", "Gold" } :: { Variant }
 
@@ -56,7 +72,8 @@ function ProgressBar.new(props: Props): (Frame, Handle)
 	local variant: Variant = props.Variant or "Primary"
 	local colors = FILLS[variant]
 	local h = props.Height or Tokens.size.progressHeight
-	local value = math.clamp(props.Value, 0, 1)
+	local bipolar = props.Bipolar == true
+	local startX, startW = ProgressBar.fillSpan(props.Value, bipolar)
 
 	local root = Create.new("Frame", {
 		BackgroundColor3 = Theme.color("paper2"),
@@ -76,7 +93,8 @@ function ProgressBar.new(props: Props): (Frame, Handle)
 		Name = "Fill",
 		BackgroundColor3 = Theme.color(colors[2]),
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(value, 1),
+		Position = UDim2.fromScale(startX, 0),
+		Size = UDim2.fromScale(startW, 1),
 		ZIndex = 2,
 		Parent = clip,
 	}, { Create.pill() })
@@ -99,6 +117,20 @@ function ProgressBar.new(props: Props): (Frame, Handle)
 		ZIndex = 4,
 		Parent = fill,
 	}, { Create.pill() })
+
+	if bipolar then
+		Create.new("Frame", {
+			Name = "Center",
+			BackgroundColor3 = Theme.color("ink"),
+			BackgroundTransparency = 0.35,
+			BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.fromScale(0.5, 0),
+			Size = UDim2.new(0, 3, 1, 0),
+			ZIndex = 5,
+			Parent = clip,
+		})
+	end
 
 	local segments = props.Segments or 0
 	if segments > 1 then
@@ -141,11 +173,14 @@ function ProgressBar.new(props: Props): (Frame, Handle)
 	return root,
 		{
 			setValue = function(v: number, animate: boolean?)
-				local target = UDim2.fromScale(math.clamp(v, 0, 1), 1)
+				local x, w = ProgressBar.fillSpan(v, bipolar)
+				local position = UDim2.fromScale(x, 0)
+				local size = UDim2.fromScale(w, 1)
 				if animate == false then
-					fill.Size = target
+					fill.Position = position
+					fill.Size = size
 				else
-					Motion.tween(fill, Tokens.motion.progressFill, "Enter", { Size = target })
+					Motion.tween(fill, Tokens.motion.progressFill, "Enter", { Position = position, Size = size })
 				end
 			end,
 			setLabel = function(t: string?)

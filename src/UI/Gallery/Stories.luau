@@ -379,26 +379,93 @@ local Stories: { Story } = {
 						return center((Kit.Slider.new({ Value = 0.3, Disabled = true, Width = 260 })))
 					end,
 				},
+				{
+					name = "Vertical (thumb control)",
+					build = function()
+						return center((Kit.Slider.new({ Value = 0.75, Orientation = "Vertical", Length = 96 })))
+					end,
+				},
+			}
+		),
+	},
+	{
+		component = "HoldButton",
+		cell = { x = 200, y = 150 },
+		variants = concat(
+			variantsOf(Kit.HoldButton.Variants, function(name)
+				return center((Kit.HoldButton.new({
+					Icon = "icon_rebirth",
+					Label = "Hold " .. name,
+					Variant = name :: any,
+					HoldTime = 1,
+				})))
+			end),
+			{
+				{
+					name = "Charge (release to fire)",
+					build = function()
+						return center((Kit.HoldButton.new({
+							Icon = "icon_height",
+							Label = "Charge",
+							Mode = "Charge",
+							HoldTime = 0.6,
+						})))
+					end,
+				},
+				{
+					name = "Medium, cooldown 40%",
+					build = function()
+						local root, handle = Kit.HoldButton.new({
+							Icon = "icon_codes",
+							Label = "Medium",
+							Variant = "Secondary",
+							Size = "Medium",
+						})
+						handle.setProgress(0.4)
+						return center(root)
+					end,
+				},
+				{
+					name = "Disabled",
+					build = function()
+						return center((Kit.HoldButton.new({ Icon = "icon_lock", Label = "Disabled", Disabled = true })))
+					end,
+				},
 			}
 		),
 	},
 	{
 		component = "ProgressBar",
-		variants = variantsOf(Kit.ProgressBar.Variants, function(name)
-			local root, bar = Kit.ProgressBar.new({
-				Value = 0.35,
-				Variant = name :: any,
-				Segments = 5,
-				Label = name,
-				Height = 26,
-				Width = 220,
-			})
-			-- Animate so the fill motion is visible in the gallery.
-			task.delay(0.6, function()
-				bar.setValue(0.8)
-			end)
-			return center(root)
-		end),
+		variants = concat(
+			variantsOf(Kit.ProgressBar.Variants, function(name)
+				local root, bar = Kit.ProgressBar.new({
+					Value = 0.35,
+					Variant = name :: any,
+					Segments = 5,
+					Label = name,
+					Height = 26,
+					Width = 220,
+				})
+				-- Animate so the fill motion is visible in the gallery.
+				task.delay(0.6, function()
+					bar.setValue(0.8)
+				end)
+				return center(root)
+			end),
+			{
+				{
+					name = "Bipolar (lean meter)",
+					build = function()
+						local root, bar =
+							Kit.ProgressBar.new({ Value = -0.4, Bipolar = true, Variant = "Warning", Width = 220 })
+						task.delay(0.6, function()
+							bar.setValue(0.7)
+						end)
+						return center(root)
+					end,
+				},
+			}
+		),
 	},
 	{
 		component = "Stat",

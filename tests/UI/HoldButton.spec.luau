@@ -1,0 +1,58 @@
+--!strict
+local HoldButton = require("@shared/UI/Kit/HoldButton")
+local ProgressBar = require("@shared/UI/Kit/ProgressBar")
+local Layout = require("@shared/UI/Layout")
+local Tokens = require("@shared/UI/Tokens")
+local T = require("@shared/Test")
+local expect = T.expect
+
+T.describe("UI.Kit.HoldButton rules", function()
+	T.it("fills over the hold time and clamps", function()
+		expect(HoldButton.progress(0, 1)).toBe(0)
+		expect(HoldButton.progress(0.5, 1)).toBe(0.5)
+		expect(HoldButton.progress(3, 1.5)).toBe(1)
+		expect(HoldButton.progress(-1, 1)).toBe(0)
+		expect(HoldButton.progress(0 / 0, 1)).toBe(0)
+		-- A zero hold time is a tap: full at once.
+		expect(HoldButton.progress(0, 0)).toBe(1)
+	end)
+
+	T.it("is held once full, cancelled when released early", function()
+		expect(HoldButton.outcome(0.4, 1, false)).toBe("pending")
+		expect(HoldButton.outcome(0.4, 1, true)).toBe("cancelled")
+		expect(HoldButton.outcome(1, 1, true)).toBe("held")
+		expect(HoldButton.outcome(1.2, 1, false)).toBe("held")
+		expect(HoldButton.outcome(0, 0, true)).toBe("held")
+	end)
+
+	T.it("stays a comfortable tap target at the smallest UI scale", function()
+		for _, px in HoldButton.SIZES do
+			expect(Layout.px(px, Layout.MIN_SCALE) >= Tokens.size.tapMin).toBe(true)
+		end
+	end)
+end)
+
+T.describe("UI.Kit.ProgressBar fill span", function()
+	T.it("fills from the left by default", function()
+		local x, w = ProgressBar.fillSpan(0.4, false)
+		expect(x).toBe(0)
+		expect(w).toBe(0.4)
+		x, w = ProgressBar.fillSpan(1.7, false)
+		expect(w).toBe(1)
+	end)
+
+	T.it("fills from the center when bipolar", function()
+		local x, w = ProgressBar.fillSpan(0.5, true)
+		expect(x).toBe(0.5)
+		expect(w).toBe(0.25)
+		x, w = ProgressBar.fillSpan(-1, true)
+		expect(x).toBe(0)
+		expect(w).toBe(0.5)
+		x, w = ProgressBar.fillSpan(-3, true)
+		expect(x).toBe(0)
+		expect(w).toBe(0.5)
+		x, w = ProgressBar.fillSpan(0 / 0, true)
+		expect(x).toBe(0.5)
+		expect(w).toBe(0)
+	end)
+end)
