@@ -66,6 +66,23 @@ function Models.percent(loc: Loc.Loc, chance: number): string
 end
 
 -- Seconds left -> "2d 3h", "1h 05m", "4m 09s", "12s".
+-- A countdown as a clock: "0:42", "9:59", "1:02:03"; days fall back to `duration` ("2d 3h").
+-- Digits and colons read the same in every locale and stay short, so it is the form a chip
+-- keeps when nothing else fits.
+function Models.clock(loc: Loc.Loc, seconds: number): string
+	local s = math.max(0, math.ceil(seconds))
+	if s >= 86400 then
+		return Models.duration(loc, s)
+	end
+	local h = math.floor(s / 3600)
+	local m = math.floor((s % 3600) / 60)
+	local rest = s % 60
+	if h > 0 then
+		return string.format("%d:%02d:%02d", h, m, rest)
+	end
+	return string.format("%d:%02d", m, rest)
+end
+
 function Models.duration(loc: Loc.Loc, seconds: number): string
 	local s = math.max(0, math.ceil(seconds))
 	local d = math.floor(s / 86400)
@@ -660,6 +677,9 @@ export type EventModel = {
 	eventName: string?,
 	phase: string,
 	status: string,
+	-- The countdown alone as a clock ("0:42", see Models.clock), when the phase has an end
+	-- time: the chip's last resort.
+	timeLeft: string?,
 	players: string?,
 	needs: string?,
 	joined: boolean,
@@ -691,6 +711,7 @@ function Models.event(
 	local phase = state.phase or "idle"
 	local name = eventName(loc, defs, state.eventId)
 	local left = if type(state.endsAt) == "number" then Models.duration(loc, state.endsAt - now) else nil
+	local clock = if type(state.endsAt) == "number" then Models.clock(loc, state.endsAt - now) else nil
 	local status: string
 	if phase == "idle" then
 		local nextName = eventName(loc, defs, state.nextEventId)
@@ -730,6 +751,7 @@ function Models.event(
 		eventName = name,
 		phase = phase,
 		status = status,
+		timeLeft = clock,
 		players = players,
 		needs = if phase == "lobby" and count < (state.minPlayers or 1)
 			then loc:t("events.needs", { min = state.minPlayers or 1 })

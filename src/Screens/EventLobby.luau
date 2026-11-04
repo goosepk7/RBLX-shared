@@ -199,8 +199,60 @@ function EventLobby.build(env: Parts.Env, ctx: ScreenManager.ScreenContext): Scr
 end
 
 --[[
+	The chip's text, longest form first: "Stilt Race: Starts in 0:42", then the status alone
+	("Starts in 0:42", or "Flash Flood starts in 0:42!" for a warning), then the countdown
+	alone ("0:42"). Each form keeps the countdown, so dropping to a shorter one never loses it.
+]]
+function EventLobby.chipTexts(model: Models.EventModel): { string }
+	local out: { string } = {}
+	local function add(text: string?)
+		if text and text ~= "" and not table.find(out, text) then
+			table.insert(out, text)
+		end
+	end
+	if model.eventName and (model.phase == "lobby" or model.phase == "running") then
+		add(model.eventName .. ": " .. model.status)
+	end
+	add(model.status)
+	if model.phase ~= "idle" then
+		add(model.timeLeft)
+	end
+	return out
+end
+
+-- The narrowest chip (px at reference scale) the countdown is promised to fit, in every
+-- locale, for anything under an hour left (tests/Screens/EventLobby.spec). Games give the
+-- chip at least this much.
+EventLobby.CHIP_MIN_WIDTH = 120
+
+-- Index into `EventLobby.chipTexts(model)` of the longest form that fits a chip `maxWidth`
+-- wide (px at reference scale, icon included), by estimated width. No cap: the full form.
+function EventLobby.chipFit(model: Models.EventModel, maxWidth: number?): number
+	local texts = EventLobby.chipTexts(model)
+	if maxWidth == nil then
+		return 1
+	end
+	local room = Kit.Chip.labelWidth(maxWidth, true, false)
+	for i, text in texts do
+		if Kit.Chip.textWidth(text) <= room then
+			return i
+		end
+	end
+	return #texts
+end
+
+-- The text the chip shows (see chipTexts / chipFit).
+function EventLobby.chipText(model: Models.EventModel, maxWidth: number?): string
+	local texts = EventLobby.chipTexts(model)
+	return texts[math.min(EventLobby.chipFit(model, maxWidth), #texts)] or ""
+end
+
+--[[
 	The HUD chip: "Race starts in 0:42" while a lobby or warning is open, the time left while one
 	runs, hidden when idle. Tapping it opens the lobby screen. Returns a function that removes it.
+	With `maxWidth` the text drops to a shorter form (name first, then the words) instead of
+	truncating the countdown: picked by estimated width, then stepped down while Roblox reports
+	the label doesn't fit (a font or translation wider than the estimate).
 ]]
 function EventLobby.chip(env: Parts.Env, parent: Instance, maxWidth: number?): () -> ()
 	local loc = env.loc
@@ -217,14 +269,38 @@ function EventLobby.chip(env: Parts.Env, parent: Instance, maxWidth: number?): (
 			end
 		end,
 	})
+	local label = chipRoot:FindFirstChild("Label", true)
+	-- Extra steps down for this event + phase, from TextFits; reset when either changes.
+	local fitKey: string? = nil
+	local stepDown = 0
+	local function model(): Models.EventModel
+		return Models.event(loc, tracker.get(), env.now(), env.events)
+	end
 	local function render()
-		local model = Models.event(loc, tracker.get(), env.now(), env.events)
-		chipRoot.Visible = model.phase ~= "idle"
-		local text = model.status
-		if model.eventName and (model.phase == "lobby" or model.phase == "running") then
-			text = model.eventName .. ": " .. text
+		local m = model()
+		chipRoot.Visible = m.phase ~= "idle"
+		local key = m.phase .. "|" .. (m.eventName or "")
+		if key ~= fitKey then
+			fitKey = key
+			stepDown = 0
 		end
-		chip.setText(text)
+		local texts = EventLobby.chipTexts(m)
+		local index = math.min(EventLobby.chipFit(m, maxWidth) + stepDown, #texts)
+		chip.setText(texts[index] or "")
+	end
+	local fitConnection: RBXScriptConnection? = nil
+	if maxWidth and label and label:IsA("TextLabel") then
+		fitConnection = label:GetPropertyChangedSignal("TextFits"):Connect(function()
+			if label.TextFits or not chipRoot.Visible then
+				return
+			end
+			local m = model()
+			local texts = EventLobby.chipTexts(m)
+			if EventLobby.chipFit(m, maxWidth) + stepDown < #texts then
+				stepDown += 1
+				render()
+			end
+		end)
 	end
 	local unsubscribe = tracker.onChanged(render)
 	local stopTicking = ticker(render)
@@ -232,6 +308,9 @@ function EventLobby.chip(env: Parts.Env, parent: Instance, maxWidth: number?): (
 	return function()
 		unsubscribe()
 		stopTicking()
+		if fitConnection then
+			fitConnection:Disconnect()
+		end
 		chipRoot:Destroy()
 	end
 end

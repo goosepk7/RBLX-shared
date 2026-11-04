@@ -621,8 +621,11 @@ it out. Their strings are in `Shared.Strings` (areas `shop`, `rebirth`, `codes`,
 | `Screens.Purchase.request(env, "product" \| "pass", key)` | The prompt wrapper every Robux purchase goes through. Crates show their odds first. Failures become toasts; the success toast follows `Shop.Confirmed`. |
 | `Screens.Tutorial.start(env, steps, onFinished?)` | Coachmarks: `steps` `{ id, textKey, target?() -> GuiObject?, waits? }`, same ids and order as the server's `Tutorial`. Returns `{ complete(stepId), current(), stop() }`. Resumes where the server says; never shows again once done. |
 | `Screens.EventLobby.chip(env, parent, maxWidth?)` | The HUD countdown chip; tap opens the lobby. Returns a remover. |
+| `Screens.EventLobby.chipTexts(model)` / `chipText(model, maxWidth?)` | The chip's forms, longest first ("Name: Starts in 42s", "Starts in 42s", "0:42"), and the one that fits `maxWidth`. With `maxWidth` the chip drops the name, then the words, never the countdown; give it at least `EventLobby.CHIP_MIN_WIDTH` (120). |
+| `Screens.Models.clock(loc, seconds)` | A countdown as a clock ("0:42", "1:02:03"); `EventModel.timeLeft` holds it. |
+| `UI.Kit.Chip.labelWidth(maxWidth, icon?, keyHint?)` / `Chip.textWidth(text)` / `UI.Layout.textWidth(text, size)` | Label room in a capped chip and the kit's text-width estimate (0.58 em per character), for layouts and fit tests. |
 | `Screens.Leaderboards.surface(env, part, boardId)` | A board on a SurfaceGui (lobby wall). Returns a remover. |
-| `Screens.Models.*` | `shop`, `rebirth`, `daily`, `leaderboard`, `event`, `codeResult`, `badgeToast`, `purchaseConfirmed`, `tutorialStep`, plus `duration`, `percent`, `decimal`, `rewardLines`, `failure`, `answer`. |
+| `Screens.Models.*` | `shop`, `rebirth`, `daily`, `leaderboard`, `event`, `codeResult`, `badgeToast`, `purchaseConfirmed`, `tutorialStep`, plus `duration`, `clock`, `percent`, `decimal`, `rewardLines`, `failure`, `answer`. |
 
 ```luau
 local loc = Shared.Loc.new({ tables = Shared.Loc.merge(Shared.Strings, require(Strings)) })

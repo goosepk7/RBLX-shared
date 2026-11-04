@@ -8,6 +8,7 @@
 
 local Common = require("./Common")
 local Create = require("../Create")
+local Layout = require("../Layout")
 local Theme = require("../Theme")
 local Tokens = require("../Tokens")
 
@@ -42,6 +43,21 @@ export type Handle = {
 local Chip = {}
 
 Chip.Variants = { "Secondary", "Primary", "Success", "Danger", "Warning", "Info", "Gold" } :: { Variant }
+
+-- Room left for the label in a chip `maxWidth` wide (px at reference scale), after the side
+-- padding and the icon / keycap. Pure, so layouts and tests can check a text fits first.
+function Chip.labelWidth(maxWidth: number, hasIcon: boolean?, hasKeyHint: boolean?): number
+	local reserved = Tokens.space.md * 2
+		+ (if hasKeyHint then 28 + Tokens.space.sm else 0)
+		+ (if hasIcon then Tokens.size.iconSm + Tokens.space.sm else 0)
+	return math.max(0, maxWidth - reserved)
+end
+
+-- Rough rendered width of a chip label (bold body text), for picking a short form before
+-- Roblox lays it out.
+function Chip.textWidth(text: string): number
+	return Layout.textWidth(text, Tokens.type.body)
+end
 
 function Chip.new(props: Props): (Frame, Handle)
 	local variant: Variant = props.Variant or "Secondary"
@@ -128,11 +144,8 @@ function Chip.new(props: Props): (Frame, Handle)
 	})
 
 	if props.MaxWidth then
-		local reserved = Tokens.space.md * 2
-			+ (if props.KeyHint then 28 + Tokens.space.sm else 0)
-			+ (if props.Icon then Tokens.size.iconSm + Tokens.space.sm else 0)
 		Create.new("UISizeConstraint", {
-			MaxSize = Vector2.new(math.max(0, props.MaxWidth - reserved), math.huge),
+			MaxSize = Vector2.new(Chip.labelWidth(props.MaxWidth, props.Icon ~= nil, props.KeyHint ~= nil), math.huge),
 			Parent = label,
 		})
 	end

@@ -22,6 +22,16 @@ Layout.CRITICAL_TOP_FRACTION = 0.12
 -- Side gutter applied inside the device safe area.
 Layout.GUTTER = 12
 
+-- Bold BuilderSans averages about 0.55 em per character across en / pt-br / es; 0.58 leaves
+-- headroom. Used to pick a short form of a label before Roblox lays it out (TextFits is
+-- the backstop), and by layout tests that check long translations fit.
+Layout.TEXT_EM = 0.58
+
+-- Estimated width in px of one line of `text` at `size` px (both at reference scale).
+function Layout.textWidth(text: string, size: number): number
+	return (utf8.len(text) or #text) * size * Layout.TEXT_EM
+end
+
 function Layout.scaleFor(width: number, height: number): number
 	local short = math.min(width, height)
 	if short <= 0 then
