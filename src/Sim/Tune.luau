@@ -108,7 +108,20 @@ function Tune.solve(spec: SolveSpec): SolveResult
 	local far = if moveUp then spec.max else spec.min
 	local farMetric = if moveUp then atMax else atMin
 
-	if not meets(farMetric, spec.target) then
+	-- The edge of the target the metric reaches first on the way from `current` to `far`. With a
+	-- band target ({ min, max }) `far` may overshoot the band, so bisect against this edge rather
+	-- than against `meets`: the first value past the near edge is the minimal change.
+	local function crossed(metric: number): boolean
+		if metric ~= metric then
+			return false
+		end
+		if tooHigh then
+			return metric <= (spec.target.max :: number)
+		end
+		return spec.target.min == nil or metric >= spec.target.min
+	end
+
+	local function cannotReach(detail: string): SolveResult
 		return {
 			name = spec.name,
 			ok = false,
@@ -117,33 +130,41 @@ function Tune.solve(spec: SolveSpec): SolveResult
 			value = spec.current,
 			metric = before,
 			steps = steps,
-			reason = string.format(
-				"cannot reach target within bounds: best at %s = %.4g gives %.4g",
-				spec.name,
-				far,
-				farMetric
-			),
+			reason = "cannot reach target within bounds: " .. detail,
 		}
 	end
 
-	-- Bisect between current (fails) and far (meets) for the boundary closest to current.
+	if not crossed(farMetric) then
+		return cannotReach(string.format("best at %s = %.4g gives %.4g", spec.name, far, farMetric))
+	end
+
+	-- Bisect between current (not yet crossed) and far (crossed) for the crossing closest to
+	-- current. With minimalChange = false and a far end inside the target, take the far end.
 	local failing = spec.current
 	local passing = far
 	local passingMetric = farMetric
-	local minimal = spec.minimalChange ~= false
-	if not minimal then
-		failing = passing
-	end
+	local bisect = spec.minimalChange ~= false or not meets(farMetric, spec.target)
 	local count = 0
-	while minimal and math.abs(passing - failing) > tolerance and count < maxSteps do
+	while bisect and math.abs(passing - failing) > tolerance and count < maxSteps do
 		count += 1
 		local mid = (failing + passing) / 2
 		local metric = eval(mid)
-		if meets(metric, spec.target) then
+		if crossed(metric) then
 			passing, passingMetric = mid, metric
 		else
 			failing = mid
 		end
+	end
+	if not meets(passingMetric, spec.target) then
+		-- The metric jumps over the whole band between two values closer than `tolerance`.
+		return cannotReach(
+			string.format(
+				"the metric jumps over the band near %s = %.4g (%.4g); no value in bounds lands inside it",
+				spec.name,
+				passing,
+				passingMetric
+			)
+		)
 	end
 
 	local recommended = math.clamp(round(passing, spec.step), spec.min, spec.max)
