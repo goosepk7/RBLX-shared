@@ -367,6 +367,9 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 	local loading: { [number]: Loading } = {}
 	local closing = false
 	local subscribed = false
+	local subscribeRetryAt = -math.huge
+	-- The last load error per player, kept until they load again or leave.
+	local lastFailure: { [number]: LoadError } = {}
 	local counters = newCounters()
 	local failuresByReason: { [string]: number } = {}
 	local recentErrors: { ErrorEntry } = {}
@@ -621,7 +624,7 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 	end
 
 	local function ensureSubscribed()
-		if subscribed or messagingService == nil then
+		if subscribed or messagingService == nil or clock() < subscribeRetryAt then
 			return
 		end
 		subscribed = true
@@ -634,7 +637,13 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 			end)
 		end)
 		if not ok then
-			Log.warn("Data", name .. ": release pings unavailable, relying on autosave: " .. tostring(err))
+			-- Release requests still arrive through meta on the next autosave; try again later.
+			subscribed = false
+			subscribeRetryAt = clock() + 60
+			Log.warn(
+				"Data",
+				name .. ": release pings unavailable (retrying in 60 s), relying on autosave: " .. tostring(err)
+			)
 		end
 	end
 
@@ -708,6 +717,7 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 						local current = old :: Document.Document
 						Document.normalize(current, ctx.now)
 						local meta = current.meta
+						local migratedNow = false
 						if meta.schemaVersion < version then
 							local migrated, value =
 								Document.migrate(current.data, meta.schemaVersion, version, migrations)
@@ -717,14 +727,23 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 							end
 							current.data = value
 							meta.schemaVersion = version
+							migratedNow = true
+						end
+						if type(current.data) ~= "table" then
+							local reason = "profile data is a " .. typeof(current.data) .. ", not a table"
+							decision, detail = if migratedNow then nil else "corrupt", reason
+							return nil
 						end
 						if reconcile then
 							Document.reconcile(current.data, template)
 						end
 						local storable, problem = checkStorable(current.data)
 						if not storable then
-							-- Only a migration can make loaded data unstorable; refuse like a failed one.
-							decision, detail = nil, "the migrated data can't be stored: " .. tostring(problem)
+							-- In practice only a migration makes loaded data unstorable.
+							local reason = (if migratedNow then "the migrated data" else "the stored data")
+								.. " can't be stored: "
+								.. tostring(problem)
+							decision, detail = if migratedNow then nil else "corrupt", reason
 							return nil
 						end
 						meta.session = Document.session(ctx)
@@ -834,16 +853,6 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 		if existing and existing.active and not existing.releasing then
 			return existing.profile, nil
 		end
-		-- A quick rejoin to the same server: let the old session finish handing back first, so
-		-- there is never more than one record per player.
-		local waitUntil = clock() + forceReleaseTimeout
-		while existing and existing.active do
-			if clock() >= waitUntil then
-				return failLoad(keyFor(userId), "locked", "previous session in this server is still releasing")
-			end
-			sleep(0.1)
-			existing = records[userId]
-		end
 		local pending = loading[userId]
 		if pending then
 			while not pending.done do
@@ -851,20 +860,38 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 			end
 			return pending.profile, pending.err
 		end
-		ensureSubscribed()
+		-- Registered before the first yield, so concurrent callers, receipts and
+		-- waitForProfileAsync all see that a load is under way.
 		local state: Loading = { done = false, leaving = false, profile = nil, err = nil }
 		loading[userId] = state
-		local ok, profile, err = pcall(loadLocked, player, state)
+		lastFailure[userId] = nil
+		local ok, profile, err = pcall(function(): (Profile<any>?, LoadError?)
+			-- A quick rejoin to the same server: let the old session finish handing back first,
+			-- so there is never more than one record per player.
+			local waitUntil = clock() + forceReleaseTimeout
+			local previous = records[userId]
+			while previous and previous.active do
+				if clock() >= waitUntil then
+					return failLoad(keyFor(userId), "locked", "previous session in this server is still releasing")
+				end
+				sleep(0.1)
+				previous = records[userId]
+			end
+			ensureSubscribed()
+			return loadLocked(player, state)
+		end)
 		loading[userId] = nil
 		state.done = true
+		local reason: LoadError? = if ok then err :: any else "dataStore"
 		if not ok then
 			Log.error("Data", "load of " .. tostring(userId) .. " raised: " .. tostring(profile))
-			state.err = "dataStore"
-			return nil, "dataStore"
+			profile = nil
 		end
-		local reason: LoadError? = err :: any
 		state.profile = profile
 		state.err = reason
+		if reason then
+			lastFailure[userId] = reason
+		end
 		return profile, reason
 	end
 
@@ -884,17 +911,16 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 
 	function store.waitForProfileAsync(self: Store<any>, player: Player, timeout: number?): Profile<any>?
 		local deadline = clock() + (timeout or 30)
+		local userId = player.UserId
 		while true do
 			local profile = self:get(player)
 			if profile then
 				return profile
 			end
-			local pending = loading[player.UserId]
-			if pending == nil and records[player.UserId] == nil then
-				-- Not loading: either never started or failed.
+			if loading[userId] == nil and lastFailure[userId] ~= nil then
 				return nil
 			end
-			if clock() >= deadline then
+			if player.Parent == nil or clock() >= deadline then
 				return nil
 			end
 			sleep(0.1)
@@ -903,6 +929,7 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 
 	function store.releaseAsync(_self: Store<any>, player: Player): (boolean, string?)
 		local userId = player.UserId
+		lastFailure[userId] = nil
 		local pending = loading[userId]
 		if pending then
 			pending.leaving = true

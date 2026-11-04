@@ -147,6 +147,83 @@ T.describe("Data.Store loading", function()
 		expect(loaded).toEqual({ 3 })
 	end)
 
+	T.it("waitForProfileAsync also waits when called before the load starts", function()
+		local world = World.new()
+		local a = world:server("A")
+		local player = a:join(1)
+		local got: any = nil
+		world.clock.task.spawn(function()
+			got = a.store:waitForProfileAsync(player)
+		end)
+		world.clock:advance(1)
+		a.store:bindPlayers()
+		world.clock:advance(1)
+		expect(got).never.toBeNil()
+		expect(got).toBe(a.store:get(player))
+	end)
+
+	T.it("shows a load as under way from its first yield", function()
+		local world = World.new()
+		-- MessagingService takes a second to subscribe, as it does in a real server.
+		local subscribes = 0
+		local slowMessaging = {
+			SubscribeAsync = function(_self: any, topic: string, callback: (any) -> ())
+				subscribes += 1
+				world.clock.task.wait(1)
+				return world.messaging:SubscribeAsync(topic, callback)
+			end,
+			PublishAsync = function(_self: any, topic: string, data: any)
+				world.messaging:PublishAsync(topic, data)
+			end,
+		}
+		local a = world:server("A", { messagingService = slowMessaging })
+		a.store:bindPlayers()
+		local player = a:join(1)
+		expect(a:counters().loading).toBe(1)
+		local decision = a.store:processReceipt({
+			PlayerId = 1,
+			ProductId = 1,
+			PurchaseId = "early",
+			CurrencySpent = 1,
+			CurrencyType = "Robux",
+			PlaceIdWherePurchased = 1,
+		}, function(profile: any): boolean?
+			profile.data.coins += 1
+			return true
+		end)
+		expect(decision).toBe(world.mps.Decision.PurchaseGranted)
+		expect(a.store:get(player)).never.toBeNil()
+		a:join(2)
+		expect(subscribes).toBe(1)
+	end)
+
+	T.it("subscribes again later when MessagingService was down at first", function()
+		local world = World.new()
+		local attempts = 0
+		local flakyMessaging = {
+			SubscribeAsync = function(_self: any, topic: string, callback: (any) -> ())
+				attempts += 1
+				if attempts == 1 then
+					error("MessagingService is not available")
+				end
+				return world.messaging:SubscribeAsync(topic, callback)
+			end,
+			PublishAsync = function(_self: any, topic: string, data: any)
+				world.messaging:PublishAsync(topic, data)
+			end,
+		}
+		local a = world:server("A", { messagingService = flakyMessaging })
+		a.store:loadAsync(a:join(1))
+		expect(logged("warn", "release pings unavailable")).toBe(true)
+		a.store:loadAsync(a:join(2))
+		expect(attempts).toBe(1)
+		world.clock:advance(60)
+		a.store:loadAsync(a:join(3))
+		expect(attempts).toBe(2)
+		a.store:loadAsync(a:join(4))
+		expect(attempts).toBe(2)
+	end)
+
 	T.it("waitForProfileAsync waits for a slow load and gives up on a failed one", function()
 		local world = World.new()
 		local a = world:server("A")
@@ -264,6 +341,16 @@ T.describe("Data.Store schema versions", function()
 		expect(player:kickMessage()).toContain("older version")
 		expect(world:version(1)).toBe(before)
 		expect(a:counters().loadFailuresByReason.newerVersion).toBe(1)
+	end)
+
+	T.it("refuses a profile whose data isn't a table", function()
+		local world = World.new()
+		world:seed(1, World.document(42))
+		local a = world:server("A")
+		local profile, err = a.store:loadAsync(a:join(1))
+		expect(profile).toBeNil()
+		expect(err).toBe("corrupt")
+		expect(world:stored(1).data).toBe(42)
 	end)
 
 	T.it("refuses a value that isn't a profile, and leaves it untouched", function()
