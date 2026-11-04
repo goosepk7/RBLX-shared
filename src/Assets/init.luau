@@ -17,7 +17,9 @@
 	error in strict mode, which tests and the lint use).
 ]]
 
+local Color = require("./UI/Color")
 local SharedIds = require("@self/AssetIds")
+local Tokens = require("./UI/Tokens")
 
 export type Kind = "image" | "audio" | "animation" | "mesh" | "video"
 export type Status = "pending" | "uploaded"
@@ -79,10 +81,15 @@ function Assets.register(ids: IdTable, owner: string?)
 	end
 end
 
--- Test helper: forget everything except RBLXShared's own ids.
-function Assets.reset()
+-- Test helper: forget every registered id, including RBLXShared's own.
+function Assets.clear()
 	table.clear(registry)
 	table.clear(warned)
+end
+
+-- Test helper: forget everything except RBLXShared's own ids.
+function Assets.reset()
+	Assets.clear()
 	Assets.register(SharedIds, "RBLXShared")
 end
 
@@ -170,18 +177,30 @@ function Assets.pending(): { AssetRef }
 	return out
 end
 
--- Placeholder card colors: saturated, distinct, readable with white text. Picked by name hash
--- so the same asset always gets the same color.
-local PLACEHOLDER_PALETTE: { { number } } = {
-	{ 255, 122, 26 },
-	{ 108, 92, 231 },
-	{ 46, 196, 182 },
-	{ 255, 90, 110 },
-	{ 77, 163, 255 },
-	{ 31, 164, 102 },
-	{ 211, 154, 18 },
-	{ 200, 56, 74 },
+-- Placeholder card colors come from the UI tokens: saturated fills that read with white,
+-- Ink-stroked text. Picked by name hash so the same asset always gets the same color.
+local PLACEHOLDER_TOKENS: { string } = {
+	Tokens.accents.stilts.primary,
+	Tokens.accents.stilts.secondary,
+	Tokens.accents.car.primary,
+	Tokens.palette.danger,
+	Tokens.palette.info,
+	Tokens.palette.successEdge,
+	Tokens.palette.warningEdge,
+	Tokens.palette.dangerEdge,
 }
+
+local function rgbOf(hex: string): { number }
+	local c = Color.parse(hex)
+	return { c.r, c.g, c.b }
+end
+
+local PLACEHOLDER_PALETTE: { { number } } = {}
+for _, hex in PLACEHOLDER_TOKENS do
+	table.insert(PLACEHOLDER_PALETTE, rgbOf(hex))
+end
+local INK = rgbOf(Tokens.palette.ink)
+local WHITE = rgbOf(Tokens.palette.white)
 
 local function hashName(name: string): number
 	local hash = 5381
@@ -214,20 +233,20 @@ function Assets.placeholder(name: string, props: { [string]: any }?): Frame
 	frame.Size = UDim2.fromOffset(64, 64)
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, Tokens.radius.chip)
 	corner.Parent = frame
 
 	local label = Instance.new("TextLabel")
 	label.Name = "AssetName"
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.FontFace = Font.new("rbxasset://fonts/families/BuilderSans.json", Enum.FontWeight.Bold)
+	label.FontFace = Font.new(Tokens.fonts.body, Enum.FontWeight.Bold)
 	label.Text = name
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextColor3 = Color3.fromRGB(WHITE[1], WHITE[2], WHITE[3])
 	label.TextScaled = true
 	label.TextWrapped = true
 	label.TextStrokeTransparency = 0.4
-	label.TextStrokeColor3 = Color3.fromRGB(30, 34, 53)
+	label.TextStrokeColor3 = Color3.fromRGB(INK[1], INK[2], INK[3])
 	label.Parent = frame
 
 	local padding = Instance.new("UIPadding")

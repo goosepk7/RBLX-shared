@@ -4,6 +4,39 @@
 
 export type Entry = { kind: string, status: string, assetId: number? }
 
-local ids: { [string]: Entry } = {}
+local ids: { [string]: Entry } = {
+	icon_cash = { kind = "image", status = "pending", assetId = nil },
+	icon_cash_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_check = { kind = "image", status = "pending", assetId = nil },
+	icon_check_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_codes = { kind = "image", status = "pending", assetId = nil },
+	icon_codes_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_event = { kind = "image", status = "pending", assetId = nil },
+	icon_event_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_height = { kind = "image", status = "pending", assetId = nil },
+	icon_height_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_leaderboard = { kind = "image", status = "pending", assetId = nil },
+	icon_leaderboard_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_lock = { kind = "image", status = "pending", assetId = nil },
+	icon_lock_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_part = { kind = "image", status = "pending", assetId = nil },
+	icon_part_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_rebirth = { kind = "image", status = "pending", assetId = nil },
+	icon_rebirth_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_settings = { kind = "image", status = "pending", assetId = nil },
+	icon_settings_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_shop = { kind = "image", status = "pending", assetId = nil },
+	icon_shop_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_star = { kind = "image", status = "pending", assetId = nil },
+	icon_star_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_star_empty = { kind = "image", status = "pending", assetId = nil },
+	icon_star_empty_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_warning = { kind = "image", status = "pending", assetId = nil },
+	icon_warning_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_weight = { kind = "image", status = "pending", assetId = nil },
+	icon_weight_64 = { kind = "image", status = "pending", assetId = nil },
+	icon_wins = { kind = "image", status = "pending", assetId = nil },
+	icon_wins_64 = { kind = "image", status = "pending", assetId = nil },
+}
 
 return ids

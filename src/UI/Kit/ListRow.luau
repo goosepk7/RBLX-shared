@@ -96,11 +96,8 @@ function ListRow.new(props: Props): (Frame, Handle)
 		})
 	end
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromOffset(leadSize, leadSize),
 			LayoutOrder = 2,
 			ZIndex = 3,

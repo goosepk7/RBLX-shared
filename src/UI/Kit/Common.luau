@@ -5,6 +5,7 @@
 	and press/hover behaviour.
 ]]
 
+local Assets = require("../../Assets")
 local Create = require("../Create")
 local Hooks = require("../Hooks")
 local Motion = require("../Motion")
@@ -64,6 +65,17 @@ local function dimOne(inst: Instance, dimmed: boolean)
 		local b = base :: number
 		(inst :: any)[key] = if dimmed then b + (1 - b) * Tokens.alpha.disabled else b
 	end
+end
+
+-- ImageLabel showing the named asset (an Assets manifest name such as "icon_wins").
+-- While the asset is pending upload, Assets.applyImage overlays its placeholder card,
+-- so a missing upload is visible instead of a blank square.
+function Common.icon(assetName: string, props: { [string]: any }): ImageLabel
+	local image = Create.new("ImageLabel", props) :: ImageLabel
+	image.BackgroundTransparency = 1
+	image.ScaleType = Enum.ScaleType.Fit
+	Assets.applyImage(image, assetName)
+	return image
 end
 
 function Common.setDimmed(root: Instance, dimmed: boolean)

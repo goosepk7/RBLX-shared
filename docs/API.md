@@ -45,11 +45,12 @@ Manifest-backed asset lookup. Code never hardcodes an asset id.
 | `Assets.get(name)` | `string` | `"rbxassetid://<id>"` when uploaded, `""` while pending. |
 | `Assets.ref(name)` | `AssetRef` | `{ name, kind, status, assetId?, uri, placeholder }` (same shape as `Types.AssetRef`). |
 | `Assets.variant(name, size?)` | `string` | `"<name>_<size>"` if registered (e.g. `icon_wins_64`), else `name`. |
-| `Assets.image(name, { size?, props? })` | `GuiObject` | `ImageLabel`, or a colored placeholder card showing the name while pending. |
+| `Assets.image(name, { size?, props? })` | `GuiObject` | `ImageLabel`, or a placeholder card (UI token color, by name hash) showing the name while pending. |
 | `Assets.applyImage(imageLabel, name, size?)` | | Sets `Image`, or overlays the placeholder card. |
 | `Assets.sound(name, props?)` | `Sound` | Silent while pending (warns once). Errors if the asset isn't audio. |
 | `Assets.has / isPlaceholder / list / pending` | | Introspection for admin panels and checks. |
 | `Assets.setStrict(bool)` | | Unknown names throw instead of warning once. |
+| `Assets.reset()` / `Assets.clear()` | | Test helpers: back to only RBLXShared's ids, or to an empty registry. |
 
 ```luau
 Assets.register(require(ReplicatedStorage.Stilts.AssetIds), "stilts")

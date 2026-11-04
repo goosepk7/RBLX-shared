@@ -7,7 +7,7 @@ T.describe("Assets", function()
 	local warnings: { string } = {}
 
 	T.beforeEach(function()
-		Assets.reset()
+		Assets.clear()
 		Assets.setStrict(false)
 		table.clear(warnings)
 		Assets.setWarnHandler(function(message)
@@ -95,5 +95,29 @@ T.describe("Assets", function()
 			count += 1
 		end
 		expect(count).toBeGreaterThan(3)
+	end)
+	T.it("registers RBLXShared's core icons on reset", function()
+		Assets.reset()
+		expect(Assets.has("icon_wins")).toBe(true)
+		expect(Assets.variant("icon_wins", 64)).toBe("icon_wins_64")
+		expect(Assets.isPlaceholder("icon_settings")).toBe(true)
+	end)
+
+	T.it("placeholder colors are UI token colors", function()
+		local Color = require("@shared/UI/Color")
+		local Tokens = require("@shared/UI/Tokens")
+		local allowed: { [string]: boolean } = {}
+		for _, hex in Tokens.palette do
+			allowed[hex] = true
+		end
+		for _, accent in Tokens.accents do
+			for _, hex in accent :: any do
+				allowed[hex] = true
+			end
+		end
+		for _, name in { "icon_wins", "icon_cash", "sfx_win", "x", "y", "z" } do
+			local c = Assets.placeholderColor(name)
+			expect(allowed[Color.toHex({ r = c[1], g = c[2], b = c[3] })]).toBe(true)
+		end
 	end)
 end)

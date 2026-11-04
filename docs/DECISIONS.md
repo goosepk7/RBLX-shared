@@ -43,3 +43,4 @@ Defaults chosen where the brief is silent. Newest last.
 | 2026-11-04 | UI | `SecondaryEdge` accents (`#4A3DB8` Stilts, `#C77606` Car) and `inkSoft`/`lineDark` were added to the tokens. | The brief gives no edge for secondary fills or Paper buttons; derived by darkening ~22% toward Ink. |
 | 2026-11-04 | UI | Icon PNGs are committed next to their SVG sources. | The uploader and owner can work without Python; SVGs stay the source of truth. |
 | 2026-11-04 | UI | Gallery stories live in `src/UI/Gallery/Stories.luau` (not `tests/ui_stories.lua`). | `/uigallery` must run in the shipped game; `tests/UI/Stories.spec.luau` checks every variant has a story. |
+| 2026-11-04 | UI | Kit `Icon` props take asset names and resolve them through `Assets.applyImage`; Assets placeholder colors come from UI Tokens. | A pending icon shows a visible placeholder instead of a blank square, and the placeholder palette stays on brand with one source of colors. |
