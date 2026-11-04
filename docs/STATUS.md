@@ -43,14 +43,14 @@
 - [x] Net Studio smoke place (`studio/`): real remotes end to end, plus Roblox's argument rules against the loopback's; CI builds `NetSmoke.rbxl`
 - [x] Data: session-locked profiles, autosave every 60 s and on leave, retries with backoff, migrations, BindToClose flush, idempotent receipts, refusal to write unstorable data, diagnostics API (`getDiagnostics`) for the Admin panel's DataDiagnostics view
 - [x] `tools/backup_profiles`: daily backups and one-player restores through Open Cloud; the scheduled workflow for game repos is in docs/TOOLING.md
-- [ ] DataDiagnostics panel UI (with Admin v0.2)
+- [x] DataDiagnostics panel UI (the Admin panel's Data tab)
 - [x] Economy: currencies, earn/spend/grant/adjust with declared reasons, grouped multipliers (rebirth x pass x event x boost), play-time boosts saved in the wallet, fraction carry and balance caps, player attributes and leaderstats, ledger and per-reason totals, `bindStore` wiring to Data
 - [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, UI (a pointer to UI.md), Util; every name in these sections checked against the code for v0.1
 
 ## Loc (early, for the game foundations)
 - [x] Loc: per-locale string tables, `{name}` placeholders with number formats, CLDR plurals for en/pt-BR/es, source fallback, `validate` for specs, Roblox localization CSV export
 - [x] Kit numbers follow the locale (`loc:bindKit()`: 1,2K in pt-br and es)
-- [ ] Language override in Settings (with Settings v0.2)
+- [x] Language override in Settings (`language`: auto, en, pt-br, es)
 
 ## Shared v0.2: Analytics, Loc, Audio, VFX, Settings, Admin
 - [x] `UI.Kit.TextInput` (Codes screen, Admin console) with gallery story (#15)
@@ -59,10 +59,11 @@
 - [x] Audio: named sounds with variations and pooling, music crossfade, category volumes, kit sounds through `UI.Hooks`
 - [x] 22 base SFX (UI set plus purchase, win, checkpoint, unlock, fail) from `tools/sfx_gen.py`, in the manifest, pending upload
 - [x] VFX: 8 particle presets on theme colors, highlights (capped), camera shake (capped, scalable to off), screen flash (can be turned off)
-- [ ] Kit Toggle and Slider
-- [ ] Settings: per-player settings saved in the profile (music, sfx, shake, flashes, haptics, colorblind palette, control scheme, language), server-validated, Settings screen
-- [ ] Admin: owner whitelist, chat commands (grant, reset, teleport, kick, sim-run), data inspector with DataDiagnostics, flags, analytics feed, Admin panel
+- [x] Kit Toggle and Slider, with gallery stories
+- [x] Settings: per-player settings saved in the profile (music, sfx, shake, flashes, haptics, colorblind palette, control scheme, language), server-validated, Settings screen
+- [x] Admin: owner whitelist, chat commands (grant, reset, teleport, kick, sim-run), data inspector with DataDiagnostics, flags, analytics feed, Admin panel
 - Weak spots, honestly: none of the SFX have been heard on a device yet (synthesized and checked for level and length only). VFX uses engine particle sprites, so splash and confetti look like sparkles until custom sprites exist. Roblox Analytics only shows data from a published place, so the dashboards are unverified until launch.
+- Weak spots, Settings and Admin: neither screen has been opened in Studio yet (built from the kit, layout unverified on a device). The colorblind palettes were picked from published colorblind-safe sets but not checked in a simulator. A palette change rebuilds the Settings screen only; other open kit screens keep their colors until they're rebuilt. Admin's `tp` without a game hook moves to another player only. The `/admin` chat command needs TextChatService (the default chat).
 
 ## World (`car/foundation`, used by both games)
 - [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
@@ -76,5 +77,5 @@
 - [x] 16 core icons (SVG source + 256/64 PNG) and `tools/rasterize.py`
 - [x] Icon entries in `assets/manifest.json` (32: 256 px + `_64`, pending upload); kit `Icon` props take asset names and show the placeholder card until uploaded
 - [ ] Upload the core icons (`tools/upload_assets`, needs the Open Cloud key)
-- [ ] Wire `Hooks.setSoundHandler` from shared Audio (v0.2)
+- [x] Wire `Hooks.setSoundHandler` from shared Audio (`audio:bindKit()`)
 - Weak spots, honestly: the kit has not been seen in Studio yet. Layout and press feel are written to spec but unverified on a device until the owner opens `/uigallery`. Haptics on phones depend on Roblox's touch motor support, which is limited.

@@ -44,6 +44,38 @@ end
 
 ---
 
+## Admin
+
+Owner-only tools (brief §3.3, §5.5): chat commands, a data inspector, the AntiExploit flag log,
+the analytics feed, a sim launcher and an audit log. Everything runs on the server and checks the
+caller's UserId; a non-owner calling the admin remotes is dropped with an `admin.unauthorized`
+strike. Command replies are English (owner-only text, not localized).
+
+| API | Notes |
+|---|---|
+| `Admin.Server.new({ owners, allowStudio?, store?, economy?, analytics?, antiExploit?, sims?, teleport?, players?, context?, chatCommands?, now?, isStudio? })` | `owners` is a list of UserIds. Studio test sessions are allowed unless `allowStudio = false`. `chatCommands` (default on in Roblox) adds the `/admin` TextChatCommand: alone it opens the panel, with text it runs a command and replies in a toast. |
+| `admin:register({ name, description, args?, run })` | `args` is a list of `{ name, type, optional?, options? }` with type `player` (`me`, a UserId, an exact name or a unique prefix), `number`, `integer`, `string`, `currency`, `choice` or `rest`. `run(ctx, args)` returns `(ok, message?)`; errors are caught. |
+| `admin:run(caller, line)`, `admin:isOwner(player)` | Every line, allowed or not, goes into the audit log (last 100); `admin.CommandRan` fires per line. |
+| `admin:query(caller, view, arg?)`, `admin:getAudit(limit?)`, `admin:commands()` | Views (`Admin.VIEWS`): `players`, `inspect` (live profile, else the saved one), `diagnostics`, `flags`, `analytics`, `audit`, `commands`, `sims`. Results go through `Admin.snapshot` so they fit on the wire. |
+| `Admin.Client.new({ screens, loc, area?, remotes?, context?, name? })` | Registers the `"Admin"` screen (tabs Players, Data, Flags, Analytics, Sims, Console) and opens it when the server says so. Returns `{ open, destroy }`. |
+| `Admin.parse(line)`, `Admin.usage(command)`, `Admin.findPlayer(list, word, caller)`, `Admin.snapshot(value, maxDepth?, maxEntries?)`, `Admin.Panel.flatten(value, limit?)` | Pure helpers, tested under lune. |
+
+Built-in commands: `help`, `grant <player> <currency> <amount>` (negative takes; never below 0;
+reason `admin`), `reset <player> confirm` (erases the save and kicks), `kick <player> [reason]`,
+`tp <player> <target>` (the game's `teleport` hook, else to another player), `sim <name>` and
+`remote on|off` (the Net kill switch on this server).
+
+```luau
+local admin = Shared.Admin.Server.new({ owners = { 123456 }, store = Profiles, economy = economy, analytics = analytics })
+admin:register({
+    name = "flood", description = "Start the flood event",
+    args = { { name = "minutes", type = "integer", optional = true } },
+    run = function(ctx, args) Events.start("flood", args.minutes or 5) return true, "flood started" end,
+})
+```
+
+---
+
 ## AntiExploit
 
 Server-side strike registry (brief §3.3). Net reports malformed payloads, wrong-direction traffic
@@ -360,6 +392,33 @@ local result = Remotes.BuyItem:invokeAsync("skin_neon")
 if not result.ok then
 	warn(result.error)
 end
+```
+
+---
+
+## Settings
+
+Per-player settings (brief §4, §5.5), saved in the profile under `settings`. The server owns the
+values and validates every change; the client applies a change the moment the player makes it
+and sends it once the value has been still for 0.4 s.
+
+| API | Notes |
+|---|---|
+| `Settings.DEFINITIONS`, `Settings.SECTIONS` | `musicVolume`, `sfxVolume`, `uiSounds` (audio); `cameraShake` (0 to 1 in quarters), `flashes`, `haptics` (comfort); `colorblind` (`off`, `deuteranopia`, `protanopia`, `tritanopia`); `controls` (games add options); `language` (`auto`, `en`, `pt-br`, `es`). |
+| `Settings.schema({ add?, override?, remove? })` | A game's schema: add its own definitions (section `game`), change defaults or options (`override = { controls = { options = { "auto", "tap", "hold" } } }`), or drop some. Returns `{ list, byId, ids, defaults, validate, normalize }`. |
+| `Settings.remotes(schema, { context? })` | Namespace `RBLXSettings`: `Set`, `Request` (client) and `Snapshot` (server). Server and client must build it from the same schema. |
+| `Settings.Server.new({ store, schema?, field?, remotes?, context?, players? })` | `get`, `getAll`, `set(player, id, value)` and `Changed(player, id, value)`. Sends a snapshot on load and on request; a refused value resends the snapshot so the client snaps back. |
+| `Settings.Client.new({ schema?, remotes?, audio?, vfx?, loc?, localeId?, appliers?, sendDelay? })` | `get`, `set`, `reset(section?)`, `flush`, `apply`, `isReady`, `Changed`, `Ready`. Applies built-ins to Audio (volumes, UI sounds), VFX (shake scale, flashes), `UI.Hooks` (haptics), `UI.Theme` (palette) and Loc (language); `appliers[id]` handles game settings. |
+| `Settings.Screen.register(screens, { client, loc, name? })`, `Settings.Screen.build(options)` | The Settings screen from the kit: a header per section, Toggle/Slider/cycle button per row, Restore defaults and Done. It rebuilds itself on a language or palette change. |
+
+```luau
+-- Server
+local schema = Shared.Settings.schema({ override = { controls = { options = { "auto", "tap", "hold" } } } })
+Shared.Settings.Server.new({ store = Profiles, schema = schema })
+-- Client
+local settings = Shared.Settings.Client.new({ schema = schema, audio = audio, vfx = vfx, loc = loc,
+    localeId = Players.LocalPlayer.LocaleId })
+Shared.Settings.Screen.register(screens, { client = settings, loc = loc })
 ```
 
 ---
