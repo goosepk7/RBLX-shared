@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Format, lint, types, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain (rokit)
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
+
+      - name: StyLua (format check)
+        run: stylua --check src tests sims tools
+
+      - name: Selene (lint)
+        run: |
+          selene generate-roblox-std
+          selene src tests sims tools
+
+      - name: Luau type check (luau-lsp analyze)
+        run: |
+          lune setup
+          git checkout -- .luaurc  # lune setup edits it; the script adds the alias itself
+          tools/ci/typecheck.sh
+
+      - name: Unit tests (lune)
+        env:
+          CI: "true"
+        run: lune run tests
+
+      - name: Rojo build
+        run: |
+          mkdir -p build
+          rojo build dev.project.json --output build/RBLXShared-dev.rbxl
+          rojo build default.project.json --output build/RBLXShared.rbxm
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rblx-shared-build
+          path: build/
+          if-no-files-found: error

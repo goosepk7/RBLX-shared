@@ -1,0 +1,13 @@
+[package]
+name = "goosepk7/rblx-shared"
+description = "Shared framework for +1 Stilts and Evolve a Car"
+version = "0.1.0"
+license = "UNLICENSED"
+authors = ["goosepk7"]
+realm = "shared"
+# Owner-controlled index (see docs/WALLY.md). Until it exists, games consume this repo as a
+# git submodule at Packages/RBLXShared with the same module layout.
+registry = "https://github.com/goosepk7/wally-index"
+include = ["src", "src/**", "default.project.json", "wally.toml", "README.md"]
+
+[dependencies]
