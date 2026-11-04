@@ -16,6 +16,7 @@ return {
 	CurrencyPill = require("@self/CurrencyPill"),
 	Drawer = require("@self/Drawer"),
 	Grid = require("@self/Grid"),
+	HoldButton = require("@self/HoldButton"),
 	IconButton = require("@self/IconButton"),
 	ListRow = require("@self/ListRow"),
 	Modal = require("@self/Modal"),

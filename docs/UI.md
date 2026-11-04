@@ -59,7 +59,7 @@ placeholder card instead of a blank square. Constructors return `(root, handle)`
 | `Drawer` | Sheet, Side | Bottom sheet on touch/portrait, side panel on PC/console. |
 | `Confirm` | Default, Destructive, Purchase | Modal + Panel; Destructive is the big red Rebirth confirm. |
 | `Tabs` | Primary, Secondary | Pill tabs with a sliding indicator. |
-| `ProgressBar` | Primary, Secondary, Success, Danger, Warning, Info, Gold | Two-tone animated fill, optional segment ticks and label. |
+| `ProgressBar` | Primary, Secondary, Success, Danger, Warning, Info, Gold | Two-tone animated fill, optional segment ticks and label. `Bipolar = true` takes -1..1 and fills from a center tick (lean and balance meters). `ProgressBar.fillSpan` is the tested math. |
 | `Stat` | Default, Accent, Gold | Icon + caption + stroked number; counts up on change. |
 | `CurrencyPill` | Default, Gold, Accent | Icon + count-up number + "+" (opens shop); spawns a NumberPop on change. |
 | `ListRow` | Default, Pinned, Gold, Silver, Bronze | Rank disc, icon, title/subtitle, trailing value or action. Pinned = "your rank". |
@@ -67,7 +67,8 @@ placeholder card instead of a blank square. Constructors return `(root, handle)`
 | `Tooltip` | Ink, Accent | `Tooltip.attach(target, text)`. |
 | `TextInput` | Default, Success, Danger | Single-line inset field, 48 px tall: Paper-2 at rest, Info border while focused, Success/Danger border plus a helper line (`setVariant(v, message)`) for results. `MaxLength` counts characters (default 64), `Transform` rewrites typed text (`string.upper` for codes), `OnSubmit` fires on Enter/Done unless Disabled or Loading. Typing again clears a stale result. |
 | `Toggle` | Primary, Success | Pill switch with the kit edge in a 52 x 48 hit box; off is Line-dark, on is the accent or Success, and the knob springs over with a click. `OnChanged(value)`; `setValue(v, silent)` for updates from outside. |
-| `Slider` | Primary, Secondary | 12 px two-tone track, 32 px knob, 48 px hit box across the whole width. Drag with touch or mouse; D-pad and arrow keys step it. `OnChanged` while moving, `OnCommitted` on release. `Slider.snap` and `Slider.valueAt` are the tested math. |
+| `Slider` | Primary, Secondary | 12 px two-tone track, 32 px knob, 48 px hit box across the whole width. Drag with touch or mouse; D-pad and arrow keys step it. `OnChanged` while moving, `OnCommitted` on release. `Orientation = "Vertical"` with `Length` (px) makes a thumb control with `Max` at the top and a 56 px hit box; D-pad and arrows step it up and down. `Slider.snap`, `Slider.valueAt` and `Slider.valueAtVertical` are the tested math. |
+| `HoldButton` | Primary, Secondary, Success, Danger, Gold | The thumb-arc action button: an 88 px circle (68 px `Medium`) with the 6 px edge, a 40 px icon and a stroked caption under it. A white disc blooms from the center while held. `Mode = "Hold"` fires `OnHeld` once full (`HoldTime`, default 1 s) and `OnCancelled` if let go early; `Mode = "Charge"` fires `OnReleased(charge)` with 0..1. Touch tracks the finger that pressed. `handle.press()` / `release()` let key and gamepad bindings drive the same visual; `setProgress(t)` shows a cooldown while idle. `HoldButton.progress` and `HoldButton.outcome` are the tested rules. |
 | `Toast` | Success, Danger, Info, Warning, Gold, Badge | Lane under the banner lane, max 3 visible, auto-dismiss. Use `area.toasts.show`. |
 | `Banner` | Primary, Warning, Danger, Success, Info, Gold | Top-center strip, queued, slides in, auto-dismiss. Use `area.banners.show`. |
 | `NumberPop` | Gain, Loss, Gold | "+N" rises 56 px with jitter and a scale punch over 0.7 s; gains of 10% or more add confetti and "thump". |

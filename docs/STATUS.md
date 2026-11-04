@@ -60,6 +60,7 @@
 - [x] 22 base SFX (UI set plus purchase, win, checkpoint, unlock, fail) from `tools/sfx_gen.py`, in the manifest, pending upload
 - [x] VFX: 8 particle presets on theme colors, highlights (capped), camera shake (capped, scalable to off), screen flash (can be turned off)
 - [x] Kit Toggle and Slider, with gallery stories
+- [x] Kit `HoldButton` (hold-to-confirm and charged thumb actions), vertical `Slider` and two-way `ProgressBar`, with gallery stories (from the Stilts rig: Lunge, Dismount, the length slider and the balance meter)
 - [x] Settings: per-player settings saved in the profile (music, sfx, shake, flashes, haptics, colorblind palette, control scheme, language), server-validated, Settings screen
 - [x] Admin: owner whitelist, chat commands (grant, reset, teleport, kick, sim-run), data inspector with DataDiagnostics, flags, analytics feed, Admin panel
 - Weak spots, honestly: none of the SFX have been heard on a device yet (synthesized and checked for level and length only). VFX uses engine particle sprites, so splash and confetti look like sparkles until custom sprites exist. Roblox Analytics only shows data from a published place, so the dashboards are unverified until launch.

@@ -1,10 +1,12 @@
 --!strict
 --[[
-	Slider: a horizontal value control for Settings (music and sound volume, sensitivity).
+	Slider: a value control. Horizontal for Settings (music and sound volume, sensitivity);
+	vertical (`Orientation = "Vertical"`) for in-game thumb controls such as the stilt length
+	slider, where the top of the track is `Max`.
 
 	A 12 px two-tone track (accent fill on Paper-2) with a 32 px Paper knob that has the kit's
-	4 px edge. The hit box is 48 px tall across the whole width, so a thumb can grab anywhere
-	on the track. Touch and mouse drag; console and keyboard step with D-pad / arrow keys while
+	4 px edge. The hit box is 48 px across the track for its whole length (56 px for vertical),
+	so a thumb can grab anywhere on it. Touch and mouse drag; console and keyboard step with D-pad / arrow keys while
 	selected. `OnChanged` fires as the value moves (for instant feedback, e.g. live volume),
 	`OnCommitted` once on release (save it then).
 
@@ -19,6 +21,7 @@ local Theme = require("../Theme")
 local Tokens = require("../Tokens")
 
 export type Variant = "Primary" | "Secondary"
+export type Orientation = "Horizontal" | "Vertical"
 
 export type Props = {
 	Name: string?,
@@ -33,7 +36,9 @@ export type Props = {
 	Max: number?, -- default 1
 	Step: number?, -- default (Max - Min) / 20
 	Variant: Variant?,
-	Width: number?, -- px; default fills the parent
+	Orientation: Orientation?, -- default "Horizontal"
+	Width: number?, -- px, horizontal only; default fills the parent
+	Length: number?, -- px, vertical only; default fills the parent height
 	OnChanged: ((value: number) -> ())?,
 	OnCommitted: ((value: number) -> ())?,
 }
@@ -48,6 +53,7 @@ export type Handle = {
 local Slider = {}
 
 Slider.Variants = { "Primary", "Secondary" } :: { Variant }
+Slider.Orientations = { "Horizontal", "Vertical" } :: { Orientation }
 
 local TRACK_H = 12
 local KNOB = 32
@@ -75,6 +81,16 @@ function Slider.valueAt(x: number, left: number, width: number, min: number, max
 	return Slider.snap(min + t * (max - min), min, max, step)
 end
 
+--- The value under screen y for a vertical track starting at `top` that is `height` px tall.
+--- The top of the track is `max`.
+function Slider.valueAtVertical(y: number, top: number, height: number, min: number, max: number, step: number): number
+	if height <= 0 then
+		return min
+	end
+	local t = 1 - math.clamp((y - top) / height, 0, 1)
+	return Slider.snap(min + t * (max - min), min, max, step)
+end
+
 function Slider.new(props: Props): (Frame, Handle)
 	local min = props.Min or 0
 	local max = props.Max or 1
@@ -85,11 +101,16 @@ function Slider.new(props: Props): (Frame, Handle)
 	local edgeName: Theme.ColorName = if variant == "Secondary" then "secondaryEdge" else "primaryEdge"
 	local value = Slider.snap(props.Value, min, max, step)
 	local disabled = props.Disabled == true
-	local hitH = Tokens.size.buttonHeightSmall
+	local vertical = props.Orientation == "Vertical"
+	local hitH = if vertical then Tokens.size.buttonHeight else Tokens.size.buttonHeightSmall
 
-	local root = Create.group({
-		Size = if props.Width then UDim2.fromOffset(props.Width, hitH) else UDim2.new(1, 0, 0, hitH),
-	})
+	local size: UDim2
+	if vertical then
+		size = if props.Length then UDim2.fromOffset(hitH, props.Length) else UDim2.new(0, hitH, 1, 0)
+	else
+		size = if props.Width then UDim2.fromOffset(props.Width, hitH) else UDim2.new(1, 0, 0, hitH)
+	end
+	local root = Create.group({ Size = size })
 	Common.applyBase(root, props, "Slider")
 
 	local hit = Create.new("TextButton", {
@@ -104,28 +125,31 @@ function Slider.new(props: Props): (Frame, Handle)
 	}) :: TextButton
 	hit.SelectionImageObject = Common.selectionRing(999)
 
-	-- The knob's center travels from KNOB/2 to width - KNOB/2, so it never leaves the control.
+	-- The knob's center travels from KNOB/2 to length - KNOB/2, so it never leaves the control.
 	local rail = Create.group({
 		Name = "Rail",
-		Size = UDim2.new(1, -KNOB, 1, 0),
-		Position = UDim2.fromOffset(KNOB / 2, 0),
+		Size = if vertical then UDim2.new(1, 0, 1, -KNOB) else UDim2.new(1, -KNOB, 1, 0),
+		Position = if vertical then UDim2.fromOffset(0, KNOB / 2) else UDim2.fromOffset(KNOB / 2, 0),
 		Parent = root,
 	})
 	local track = Create.new("Frame", {
 		Name = "Track",
 		BackgroundColor3 = Theme.color("paper2"),
 		BorderSizePixel = 0,
-		AnchorPoint = Vector2.new(0, 0.5),
-		Size = UDim2.new(1, 0, 0, TRACK_H),
-		Position = UDim2.fromScale(0, 0.5),
+		AnchorPoint = if vertical then Vector2.new(0.5, 0) else Vector2.new(0, 0.5),
+		Size = if vertical then UDim2.new(0, TRACK_H, 1, 0) else UDim2.new(1, 0, 0, TRACK_H),
+		Position = if vertical then UDim2.fromScale(0.5, 0) else UDim2.fromScale(0, 0.5),
 		ZIndex = 2,
 		Parent = rail,
 	}, { Create.pill(), Create.stroke("line", Tokens.border.card) })
+	-- Vertical fills grow up from the bottom of the track.
 	local fill = Create.new("Frame", {
 		Name = "Fill",
 		BackgroundColor3 = Theme.color(fillName),
 		BorderSizePixel = 0,
-		Size = UDim2.fromScale(0, 1),
+		AnchorPoint = if vertical then Vector2.new(0, 1) else Vector2.zero,
+		Position = if vertical then UDim2.fromScale(0, 1) else UDim2.fromScale(0, 0),
+		Size = if vertical then UDim2.fromScale(1, 0) else UDim2.fromScale(0, 1),
 		ZIndex = 3,
 		Parent = track,
 	}, { Create.pill() })
@@ -135,7 +159,7 @@ function Slider.new(props: Props): (Frame, Handle)
 		BorderSizePixel = 0,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Size = UDim2.fromOffset(KNOB, KNOB),
-		Position = UDim2.fromScale(0, 0.5),
+		Position = if vertical then UDim2.fromScale(0.5, 1) else UDim2.fromScale(0, 0.5),
 		ZIndex = 4,
 		Parent = rail,
 	}, { Create.pill() })
@@ -151,8 +175,13 @@ function Slider.new(props: Props): (Frame, Handle)
 
 	local function paint()
 		local t = (value - min) / (max - min)
-		fill.Size = UDim2.fromScale(t, 1)
-		knob.Position = UDim2.fromScale(t, 0.5)
+		if vertical then
+			fill.Size = UDim2.fromScale(1, t)
+			knob.Position = UDim2.fromScale(0.5, 1 - t)
+		else
+			fill.Size = UDim2.fromScale(t, 1)
+			knob.Position = UDim2.fromScale(t, 0.5)
+		end
 	end
 
 	local lastSoundAt = 0
@@ -186,9 +215,19 @@ function Slider.new(props: Props): (Frame, Handle)
 	local conns: { RBXScriptConnection } = {}
 	local UserInputService = game:GetService("UserInputService")
 
-	local function moveTo(x: number)
-		setValue(Slider.valueAt(x, rail.AbsolutePosition.X, rail.AbsoluteSize.X, min, max, step))
+	local function moveTo(position: Vector3)
+		if vertical then
+			setValue(Slider.valueAtVertical(position.Y, rail.AbsolutePosition.Y, rail.AbsoluteSize.Y, min, max, step))
+		else
+			setValue(Slider.valueAt(position.X, rail.AbsolutePosition.X, rail.AbsoluteSize.X, min, max, step))
+		end
 	end
+	local upKeys = if vertical
+		then { [Enum.KeyCode.DPadUp] = true, [Enum.KeyCode.Up] = true }
+		else { [Enum.KeyCode.DPadRight] = true, [Enum.KeyCode.Right] = true }
+	local downKeys = if vertical
+		then { [Enum.KeyCode.DPadDown] = true, [Enum.KeyCode.Down] = true }
+		else { [Enum.KeyCode.DPadLeft] = true, [Enum.KeyCode.Left] = true }
 
 	local function release()
 		if dragging then
@@ -208,11 +247,11 @@ function Slider.new(props: Props): (Frame, Handle)
 			if t == Enum.UserInputType.MouseButton1 or t == Enum.UserInputType.Touch then
 				dragging = input
 				Motion.tween(knobScale, Tokens.motion.pressDuration, "Enter", { Scale = 1.12 })
-				moveTo(input.Position.X)
-			elseif input.KeyCode == Enum.KeyCode.DPadRight or input.KeyCode == Enum.KeyCode.Right then
+				moveTo(input.Position)
+			elseif upKeys[input.KeyCode] then
 				setValue(value + step)
 				commit()
-			elseif input.KeyCode == Enum.KeyCode.DPadLeft or input.KeyCode == Enum.KeyCode.Left then
+			elseif downKeys[input.KeyCode] then
 				setValue(value - step)
 				commit()
 			end
@@ -232,7 +271,7 @@ function Slider.new(props: Props): (Frame, Handle)
 					and input.UserInputType == Enum.UserInputType.MouseMovement
 				)
 			then
-				moveTo(input.Position.X)
+				moveTo(input.Position)
 			end
 		end)
 	)
