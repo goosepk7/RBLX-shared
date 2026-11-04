@@ -4,7 +4,7 @@
 as `Shared.<Module>`. Sections are added by the thread that owns the module; keep each one to
 the public surface, with one example.
 
-Version: 0.2.0 in progress (semver; a breaking change bumps both games in the same change set).
+Version: 0.2.0 (semver; a breaking change bumps both games in the same change set).
 
 ---
 
