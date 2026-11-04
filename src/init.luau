@@ -16,6 +16,7 @@ local RBLXShared = {
 	Analytics = require("@self/Analytics"),
 	AntiExploit = require("@self/AntiExploit"),
 	Assets = require("@self/Assets"),
+	Audio = require("@self/Audio"),
 	Data = require("@self/Data"),
 	Economy = require("@self/Economy"),
 	Loc = require("@self/Loc"),

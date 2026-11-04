@@ -9,6 +9,7 @@
 
 return {
 	DataStoreService = require("@self/DataStoreService"),
+	Instances = require("@self/Instances"),
 	MarketplaceService = require("@self/MarketplaceService"),
 	Players = require("@self/Players"),
 }

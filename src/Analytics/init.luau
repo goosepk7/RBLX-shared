@@ -28,7 +28,7 @@ local Types = require("./Types")
 
 export type Event = RobloxSink.Event
 export type Sink = RobloxSink.Sink
-export type Fields = { [string]: string | number | boolean }
+export type Fields = { [string]: any } -- string, number or boolean values
 
 export type State = {
 	firstJoinAt: number,
@@ -216,7 +216,7 @@ function Analytics.new(options: Options?): Analytics
 	local budgetBase = opts.budgetBase or 120
 	local budgetPerPlayer = opts.budgetPerPlayer or 20
 	local transactionTypes: { [string]: string } = {}
-	for key, value in Analytics.DEFAULT_TRANSACTION_TYPES do
+	for key, value in Analytics.DEFAULT_TRANSACTION_TYPES :: { [string]: string } do
 		transactionTypes[key] = value
 	end
 	for key, value in opts.transactionTypes or {} :: { [string]: string } do
@@ -360,7 +360,7 @@ function Analytics.new(options: Options?): Analytics
 		while #queue > 0 and tokens >= 1 do
 			local item = table.remove(queue, 1) :: Queued
 			tokens -= 1
-			local ok, err = pcall(sink, item.player, item.event)
+			local ok, err = pcall(sink :: any, item.player, item.event)
 			if ok then
 				sent += 1
 				count += 1
