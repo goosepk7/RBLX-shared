@@ -453,3 +453,35 @@ Helpers the framework uses, exposed for games. Anything not listed here may chan
 ```luau
 local template = Shared.Util.Deep.copy(Config.defaultData)
 ```
+
+---
+
+## World
+
+Static geometry as plain data (brief §8). Hubs, worlds and stage chunks are `Spec` trees of
+numbers, strings and booleans, so a layout is reproducible, diffable and testable under lune.
+The same tree builds at runtime and as a byte-stable `.rbxmx` for Rojo's `Workspace`.
+
+| API | Notes |
+|---|---|
+| `World.Spec` | `{ name, className?, size?, position?, rotation?, shape?, color?, material?, transparency?, reflectance?, anchored?, canCollide?, canTouch?, canQuery?, castShadow?, attributes?, tags?, properties?, primary?, children? }`. `className` defaults to `Part`; also `WedgePart`, `CornerWedgePart`, `TrussPart`, `SpawnLocation`, `Seat`, `Model`, `Folder`. Vectors are `{ x, y, z }`; `rotation` is degrees in Roblox's Orientation order (Y, X, Z). `color` is `#RRGGBB`, `material` an `Enum.Material` name, `shape` `Block`/`Ball`/`Cylinder`/`Wedge`/`CornerWedge`. Parts are anchored unless `anchored = false`, and every face is smooth. `primary` names a Model's PrimaryPart child. `properties` sets other simple properties (`SpawnLocation.Duration`). |
+| `World.validate(spec)` | Every problem as `"Hub.Plinth3: size must be positive"`; empty when buildable. Sibling names must be unique. |
+| `World.instantiate(spec, env?)` | Builds the tree; errors with every problem if invalid. `env` is `{ Instance, Vector3, CFrame, Color3, Enum }`, defaulting to the Roblox globals (read at call time). Attributes, properties and tags apply in sorted order. |
+| `World.stats(spec)`, `World.countParts(spec)`, `World.extents(part)` | `{ parts, instances, min, max }`: counts for the §3.1 budgets and world-axis bounds with rotation included. |
+| `World.group(name, children, extra?)`, `World.translate(spec, offset)`, `World.rotateY(spec, degrees, pivot?)`, `World.copy(spec)` | Composition; each returns a new tree. `rotateY` turns positions and orientation together, rounded to 1e-4 studs so layouts stay stable. |
+| `World.each(spec, fn(node, path))`, `World.findTagged(spec, tag)` | Walk the tree; for layout tests ("8 plinths"). |
+
+Generator tools (lune) write the model with `tools/lib/model.luau`; in a game repo require it
+through an alias for `Packages/RBLXShared/tools`:
+
+```luau
+-- tools/build_hub.luau in a game repo: `lune run tools/build_hub [--check]`
+local process = require("@lune/process")
+local Model = require("@sharedtools/lib/model")
+local HubLayout = require("@car/HubLayout")
+Model.run(HubLayout.build(), "src/Workspace/Hub.rbxmx", process.args, "lune run tools/build_hub")
+```
+
+`Model.render(spec)` returns the XML, `Model.write(spec, path, { check? })` writes or compares,
+`Model.run` prints PASS/FAIL with the part count and exits 1 on drift (for CI), and
+`Model.env()` is the lune `env` for `World.instantiate`.

@@ -52,6 +52,10 @@
 - Weak spot: kit components (CurrencyPill, Stat, NumberPop) still format with English separators (1.2K, not 1,2K) because they call `UI.Format` directly. Fix with Settings in v0.2 by routing the kit through the active Loc.
 - [ ] Translator workflow and cloud table sync (v0.2, with Settings for a language override)
 
+## World (`car/foundation`, used by both games)
+- [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
+- [x] `tools/lib/model.luau`: deterministic `.rbxmx` writer with a `--check` mode for game CI
+
 ## UI kit (`shared/ui`)
 - [x] Theme tokens (base palette + Stilts/Car accents), fonts, type scale, shapes, motion (`src/UI/Tokens.luau`)
 - [x] Kit: Button, IconButton, Chip, Card, Panel, Modal, Drawer, Confirm, Tabs, ProgressBar, Stat, CurrencyPill, ListRow, Grid, Tooltip, Toast, Banner, NumberPop, Confetti
