@@ -12,4 +12,4 @@
 
 local Loc = require("./Loc")
 
-return Loc.merge(require("@self/Common"))
+return Loc.merge(require("@self/Common"), require("@self/Settings"))

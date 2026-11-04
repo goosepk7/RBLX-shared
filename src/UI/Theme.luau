@@ -58,8 +58,12 @@ local Theme = {}
 
 Theme.tokens = Tokens
 
+export type Palette = "off" | "deuteranopia" | "protanopia" | "tritanopia"
+
 local currentGame: GameId = Tokens.defaultGame :: any
 local listeners: { (GameId) -> () } = {}
+local currentPalette: Palette = "off"
+local paletteListeners: { (Palette) -> () } = {}
 
 local VARIANTS: { [Variant]: VariantColors } = {
 	Primary = { fill = "primary", edge = "primaryEdge", text = "white", textStroke = "primaryEdge" },
@@ -103,10 +107,40 @@ function Theme.onGameChanged(fn: (GameId) -> ()): () -> ()
 	end
 end
 
---- Hex value for a token name under the current game's accent.
+--- Switches the status colors to a colorblind palette ("off" restores the brief's palette).
+--- UI built afterwards uses it; screens listen with onPaletteChanged to rebuild.
+function Theme.setPalette(palette: Palette)
+	if palette ~= "off" and Tokens.colorblind[palette] == nil then
+		error(`UI.Theme.setPalette: unknown palette "{palette}"`, 2)
+	end
+	if palette == currentPalette then
+		return
+	end
+	currentPalette = palette
+	for _, fn in table.clone(paletteListeners) do
+		task.spawn(fn, palette)
+	end
+end
+
+function Theme.getPalette(): Palette
+	return currentPalette
+end
+
+function Theme.onPaletteChanged(fn: (Palette) -> ()): () -> ()
+	table.insert(paletteListeners, fn)
+	return function()
+		local i = table.find(paletteListeners, fn)
+		if i then
+			table.remove(paletteListeners, i)
+		end
+	end
+end
+
+--- Hex value for a token name under the current game's accent and colorblind palette.
 function Theme.hex(name: ColorName, game: GameId?): string
 	local accent = (Tokens.accents :: any)[game or currentGame]
-	local value = accent[name] or (Tokens.palette :: any)[name]
+	local override = if currentPalette ~= "off" then Tokens.colorblind[currentPalette][name] else nil
+	local value = override or accent[name] or (Tokens.palette :: any)[name]
 	if value == nil then
 		error(`UI.Theme: unknown color token "{name}"`, 2)
 	end

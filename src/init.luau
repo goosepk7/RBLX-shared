@@ -21,6 +21,7 @@ local RBLXShared = {
 	Economy = require("@self/Economy"),
 	Loc = require("@self/Loc"),
 	Net = require("@self/Net"),
+	Settings = require("@self/Settings"),
 	Signal = require("@self/Signal"),
 	Strings = require("@self/Strings"),
 	Sim = require("@self/Sim"),

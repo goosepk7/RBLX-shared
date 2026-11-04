@@ -337,6 +337,52 @@ local Stories: { Story } = {
 		),
 	},
 	{
+		component = "Toggle",
+		cell = { x = 160, y = 110 },
+		variants = concat(
+			variantsOf(Kit.Toggle.Variants, function(name)
+				return center((Kit.Toggle.new({ Value = true, Variant = name :: any })))
+			end),
+			{
+				{
+					name = "Off",
+					build = function()
+						return center((Kit.Toggle.new({ Value = false })))
+					end,
+				},
+				{
+					name = "Disabled",
+					build = function()
+						return center((Kit.Toggle.new({ Value = true, Disabled = true })))
+					end,
+				},
+			}
+		),
+	},
+	{
+		component = "Slider",
+		cell = { x = 300, y = 110 },
+		variants = concat(
+			variantsOf(Kit.Slider.Variants, function(name)
+				return center((Kit.Slider.new({ Value = 0.6, Variant = name :: any, Width = 260 })))
+			end),
+			{
+				{
+					name = "Stepped (0-10)",
+					build = function()
+						return center((Kit.Slider.new({ Value = 3, Min = 0, Max = 10, Step = 1, Width = 260 })))
+					end,
+				},
+				{
+					name = "Disabled",
+					build = function()
+						return center((Kit.Slider.new({ Value = 0.3, Disabled = true, Width = 260 })))
+					end,
+				},
+			}
+		),
+	},
+	{
 		component = "ProgressBar",
 		variants = variantsOf(Kit.ProgressBar.Variants, function(name)
 			local root, bar = Kit.ProgressBar.new({

@@ -21,10 +21,12 @@ return {
 	Modal = require("@self/Modal"),
 	NumberPop = require("@self/NumberPop"),
 	Panel = require("@self/Panel"),
+	Slider = require("@self/Slider"),
 	ProgressBar = require("@self/ProgressBar"),
 	Stat = require("@self/Stat"),
 	Tabs = require("@self/Tabs"),
 	TextInput = require("@self/TextInput"),
+	Toggle = require("@self/Toggle"),
 	Toast = require("@self/Toast"),
 	Tooltip = require("@self/Tooltip"),
 }
