@@ -368,6 +368,33 @@ still ends.
 
 ---
 
+## History
+
+Undo and redo over snapshots, for editors (the car builder). Each entry is the whole state after
+a step, so undo can't drift from what the player saw. States are opaque; pass values you won't
+mutate afterwards (a copy, or frozen).
+
+| API | Notes |
+|---|---|
+| `History.new({ limit?, equals? })` | `limit` undo steps kept (default 100; the oldest go first). `equals(a, b)` makes a push equal to the current state a no-op. |
+| `history:reset(state)` | The starting state; clears both stacks. Required before `push`. |
+| `history:push(state, label?)` | After a change. Drops the redo branch. Returns false when `equals` skipped it. |
+| `history:undo()`, `history:redo()` | `(state, label)` to restore, or nil when there's nothing. The label is the step undone or redone. |
+| `history:canUndo()`, `:canRedo()`, `:undoLabel()`, `:redoLabel()`, `:current()`, `:size()` | For enabling buttons and "Undo add wheel" tooltips. |
+
+```luau
+local history = Shared.History.new({ limit = 100 })
+history:reset(design:snapshot())
+design:addMember(a, b, "member_wood_beam")
+history:push(design:snapshot(), "add member")
+local state = history:undo()
+if state then
+	design:restore(state)
+end
+```
+
+---
+
 ## Leaderboards
 
 OrderedDataStore boards with batched writes, a cached top list, rank lookup, and daily or
@@ -831,9 +858,17 @@ Helpers the framework uses, exposed for games. Anything not listed here may chan
 | `Util.Log.setSink(fn?)` | Route reports elsewhere (nil restores normal output). |
 | `Util.Deep.copy / freeze / equal / isArray` | Plain-data helpers. `copy` keeps cycles and drops metatables. |
 | `Util.Roblox.isRoblox / isStudio / side / service / task / jobId / placeId / guid / bindToClose` | Lazy Roblox access, so modules stay requirable under lune. |
+| `Util.Bytes.writer(capacity?)` | Binary writer for save formats and share codes: `byte`, `u32` (big-endian), `uint` (LEB128 varint, up to 2^32 - 1), `int` (zigzag varint), `str` (varint length + bytes), `raw`, `length`, `toString`. Out-of-range values error (an encoder bug). |
+| `Util.Bytes.reader(data)` | The matching reader: `byte`, `u32`, `uint(max?)`, `int(min?, max?)`, `str(maxLength)`, `raw(n)`, `remaining`, `position`, `failed`, `fail`. Bad input never errors: reads return 0 or "" and set `failed()`, so a decoder reads a record and checks once. |
+| `Util.Base64.encode(data, { url?, pad? }?)`, `Util.Base64.decode(text, { url? }?)` | RFC 4648. `url = true` uses `-` and `_` and drops padding by default (codes players paste into chat). `decode` returns nil for any character outside the alphabet, an impossible length or non-canonical trailing bits; padding is optional. |
+| `Util.Hash.fnv1a32(data, seed?)`, `Util.Hash.fnv1a64(data)`, `Util.Hash.hex32(n)` | FNV-1a, exact in doubles so lune and Roblox agree. `fnv1a64` returns 16 hex characters. For change detection and checksums, not security. |
 
 ```luau
 local template = Shared.Util.Deep.copy(Config.defaultData)
+
+local w = Shared.Util.Bytes.writer()
+w:uint(#nodes)
+local code = Shared.Util.Base64.encode(w:toString(), { url = true })
 ```
 
 ---

@@ -90,6 +90,10 @@
 - Weak spots, Settings and Admin: neither screen has been opened in Studio yet (built from the kit, layout unverified on a device). The colorblind palettes were picked from published colorblind-safe sets but not checked in a simulator. A palette change rebuilds the Settings screen only; other open kit screens keep their colors until they're rebuilt. Admin's `tp` without a game hook moves to another player only. The `/admin` chat command needs TextChatService (the default chat).
 - First Studio session, v0.2 checks: `TextChatCommand.Triggered` fires on the server for the server-made `/admin`; AnalyticsService accepts `session_length` flushed during PlayerRemoving and BindToClose; SoundGroup volumes follow live Settings changes; camera shake on a Scriptable camera doesn't drift (the undo relies on reading back the exact CFrame it set).
 
+## Car builder support (`car/builder`)
+- [x] `Util.Bytes` (varint/zigzag writer and bounded reader), `Util.Base64` (RFC 4648, URL-safe, strict decode), `Util.Hash` (FNV-1a 32/64, exact): the blueprint codec and share codes
+- [x] `History`: snapshot undo/redo with labels, a step limit and no-op detection
+
 ## World (`car/foundation`, used by both games)
 - [x] `World`: layout specs, validation with paths, rotation-aware stats for part budgets, composition helpers, `instantiate` for Roblox and lune
 - [x] `tools/lib/model.luau`: deterministic `.rbxmx` writer with a `--check` mode for game CI

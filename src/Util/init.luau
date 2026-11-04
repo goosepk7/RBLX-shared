@@ -6,7 +6,10 @@
 ]]
 
 return {
+	Base64 = require("@self/Base64"),
+	Bytes = require("@self/Bytes"),
 	Deep = require("@self/Deep"),
+	Hash = require("@self/Hash"),
 	Log = require("@self/Log"),
 	Roblox = require("@self/Roblox"),
 }
