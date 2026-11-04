@@ -10,12 +10,14 @@
 	  -- false, "data.inventory[3]", "Vector3 can't be stored; save its X, Y, Z numbers"
 
 	Storable: nil, booleans, finite numbers, valid UTF-8 strings, arrays (keys 1..n with no
-	holes) and dictionaries with string keys, nested to any depth without cycles.
+	holes) and dictionaries with UTF-8 string keys, nested to any depth without cycles.
 ]]
 
 local Serialize = {}
 
--- Roblox's per-key limit (characters of encoded JSON).
+-- Roblox's per-key limit (characters of encoded JSON). The sizes check() estimates leave out JSON
+-- escapes (a quote or control character in a string takes 2 to 6 characters), so they run low:
+-- don't trust one near this limit. Data warns at half of it.
 Serialize.MAX_SIZE = 4_194_303
 
 local function isArray(t: { [any]: any }): (boolean, number)
@@ -100,6 +102,10 @@ function Serialize.check(value: any, rootName: string?): (boolean, string?, stri
 								.. describeKey(key)
 								.. ")"
 						)
+					end
+					if utf8.len(key) == nil then
+						onPath[current] = nil
+						return fail(path, "has a key that is not valid UTF-8 (DataStores reject it)")
 					end
 					size += #key + 3 + walk(child, path .. "." .. key) + 1
 				end

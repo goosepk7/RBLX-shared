@@ -89,9 +89,12 @@ export type StoreOptions<T> = {
 	key: ((userId: number) -> string)?,
 	-- Seconds between saves of each loaded profile. Default 60.
 	autosaveInterval: number?,
-	-- A lock whose heartbeat is older than this many seconds belongs to a dead server. Default 600.
+	-- A lock whose heartbeat is older than this many seconds belongs to a dead server. Must be
+	-- longer than forceReleaseTimeout. Default 600.
 	lockTimeout: number?,
-	-- Seconds a live owner gets to answer a release request before the lock is taken. Default 40.
+	-- Seconds a live owner gets to answer a release request before the lock is taken. An owner
+	-- that missed the ping answers from its next autosave, so this must be longer than
+	-- autosaveInterval. Default autosaveInterval + 30.
 	forceReleaseTimeout: number?,
 	-- Seconds between attempts while waiting for a lock. Default 5.
 	lockRetryInterval: number?,
@@ -185,7 +188,8 @@ export type StoreDiagnostics = {
 	profiles: { ProfileDiagnostics },
 	-- Newest last, at most 20.
 	recentErrors: { ErrorEntry },
-	-- DataStore request budgets, when the service reports them.
+	-- DataStore request budgets, when the service reports them: GetAsync, SetIncrementAsync and
+	-- UpdateAsync (the lower of the two; every load and save spends it).
 	budgets: { [string]: number },
 }
 
@@ -204,8 +208,9 @@ export type Store<T> = {
 	get: (self: Store<T>, player: Player) -> Profile<T>?,
 	getByUserId: (self: Store<T>, userId: number) -> Profile<T>?,
 	isLoaded: (self: Store<T>, player: Player) -> boolean,
-	-- Yields until the player's profile is loaded, or nil after `timeout` (default 30) seconds
-	-- or a failed load.
+	-- Yields until the player's profile is loaded. Nil once the load fails, the player leaves or
+	-- `timeout` passes. Without a timeout it waits out a load under way, however long the lock
+	-- takes (every load ends on its own), and gives up after 30 s if no load starts.
 	waitForProfileAsync: (self: Store<T>, player: Player, timeout: number?) -> Profile<T>?,
 	-- Saves and hands back the lock. Retries in the background if the DataStore is down.
 	releaseAsync: (self: Store<T>, player: Player) -> (boolean, string?),
@@ -262,6 +267,8 @@ type Loading = {
 local MAX_RECEIPTS = 100
 local MAX_RECENT_ERRORS = 20
 local RELEASE_RETRY_INTERVAL = 10
+-- Seconds waitForProfileAsync (without a timeout) waits for a load to start.
+local LOAD_START_WAIT = 30
 
 local DEFAULT_KICK: { loadFailed: string, newerVersion: string, otherServer: string, removed: string } = {
 	loadFailed = "We couldn't load your save, so we stopped here to keep it safe. Nothing was lost. Please rejoin in a minute.",
@@ -334,8 +341,17 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 	local keyFor = options.key or defaultKey
 	local autosaveInterval = options.autosaveInterval or 60
 	assert(autosaveInterval >= 1, "Data.Store: autosaveInterval must be at least 1 second")
+	local forceReleaseTimeout = options.forceReleaseTimeout or (autosaveInterval + 30)
+	assert(
+		forceReleaseTimeout > autosaveInterval,
+		"Data.Store: forceReleaseTimeout must be longer than autosaveInterval, or an owner that misses "
+			.. "the release ping loses its unsaved progress"
+	)
 	local lockTimeout = options.lockTimeout or 600
-	local forceReleaseTimeout = options.forceReleaseTimeout or 40
+	assert(
+		lockTimeout > forceReleaseTimeout,
+		"Data.Store: lockTimeout must be longer than forceReleaseTimeout, or a live owner's lock looks dead between saves"
+	)
 	local lockRetryInterval = options.lockRetryInterval or 5
 	local receiptWait = options.receiptWait or 15
 	local kickOptions: KickMessages = options.kickMessages or {}
@@ -910,14 +926,28 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 	end
 
 	function store.waitForProfileAsync(self: Store<any>, player: Player, timeout: number?): Profile<any>?
-		local deadline = clock() + (timeout or 30)
+		local deadline = if timeout ~= nil then clock() + timeout else math.huge
+		local idleSince = clock()
 		local userId = player.UserId
 		while true do
 			local profile = self:get(player)
 			if profile then
 				return profile
 			end
-			if loading[userId] == nil and lastFailure[userId] ~= nil then
+			if loading[userId] ~= nil then
+				idleSince = clock()
+			elseif lastFailure[userId] ~= nil then
+				return nil
+			elseif timeout == nil and clock() - idleSince >= LOAD_START_WAIT then
+				Log.warn(
+					"Data",
+					string.format(
+						"%s: no load of player %d started within %d s; call bindPlayers or loadAsync",
+						name,
+						userId,
+						LOAD_START_WAIT
+					)
+				)
 				return nil
 			end
 			if player.Parent == nil or clock() >= deadline then
@@ -1216,6 +1246,11 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 				if ok and type(budget) == "number" then
 					budgets[requestType] = budget
 				end
+			end
+			-- Every load and save is one UpdateAsync, which spends one of each, so this is the
+			-- number to watch.
+			if budgets.GetAsync ~= nil and budgets.SetIncrementAsync ~= nil then
+				budgets.UpdateAsync = math.min(budgets.GetAsync, budgets.SetIncrementAsync)
 			end
 		end
 		return {

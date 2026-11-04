@@ -18,7 +18,9 @@
 
 ## Known weak spots (core)
 - `Net.RobloxTransport` (the RemoteEvent wiring) can't run under lune; every test goes through the loopback transport, which mirrors Roblox's documented argument rules. A one-click Studio smoke script lands before the games wire Net up.
-- Data runs against fakes of DataStoreService and MessagingService. The fakes follow Roblox's documented behavior (transform reruns on conflict, request budgets, error codes), but the real services haven't been exercised yet. First Studio session: join, leave, rejoin, and check `Data.getDiagnostics()`.
+- Data runs against fakes of DataStoreService and MessagingService. The fakes follow Roblox's documented behavior (transform reruns on conflict, request budgets, error codes), but the real services haven't been exercised yet. First Studio session: join, leave, rejoin, a teleport between two servers, and check `Data.getDiagnostics()`.
+- Data, known limit: when three or more servers want the same player's lock at once, their release requests keep replacing each other, so each waits out its deadline and gives up with "locked" (the player is kicked to retry; the data is untouched). Safe, and rare enough to leave.
+- Data: a player rejoining right after a server crash waits up to 90 s, because a crashed server's lock looks alive until the release wait runs out.
 - `tools/backup_profiles` is tested against a mock of the Open Cloud data stores v2 API; the real endpoint's response shape is an assumption until the first keyed run. The tool fails loudly, rather than backing up nothing, if the list response looks different.
 
 ## Tooling, CI, harness (`shared/tooling`)

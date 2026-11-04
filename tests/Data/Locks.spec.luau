@@ -83,7 +83,7 @@ T.describe("Data.Store session locks", function()
 		local onB = b:join(1)
 		expect(world:stored(1).meta.forceRelease.sessionId).toBe("session-B")
 		expect(onA:wasKicked()).toBe(false)
-		-- A's autosave at 60 s sees the request and hands over, 30 s before B would take it.
+		-- A's autosave at 60 s sees the request and hands over, long before B would take it (120 s).
 		world.clock:advance(30)
 		expect(onA:wasKicked()).toBe(true)
 		world.clock:advance(5)
@@ -93,11 +93,43 @@ T.describe("Data.Store session locks", function()
 		expect(b:counters().counters.locksStolen).toBe(0)
 	end)
 
-	T.it("takes the lock when the owner ignores the request for 40 seconds", function()
+	T.it("never takes the lock before the owner's next autosave, so a lost ping loses nothing", function()
+		-- The worst case for a lost ping: the request lands 1 s after the owner's autosave. The default
+		-- wait (autosaveInterval + 30) has to outlast the owner's next one, whatever the interval.
+		for _, interval in { 60, 120 } do
+			local world = World.new()
+			local options = { messagingService = false, autosaveInterval = interval }
+			local a = world:server("A", options)
+			local b = world:server("B", options)
+			a.store:bindPlayers()
+			b.store:bindPlayers()
+			local onA = a:join(1)
+			local profileA = a.store:get(onA)
+			assert(profileA, "expected A to load")
+			world.clock:advance(interval)
+			expect(a:counters().counters.saves).toBe(1)
+			world.clock:advance(1)
+			profileA.data.coins = 42
+			local onB = b:join(1)
+			expect(world:stored(1).meta.forceRelease.sessionId).toBe("session-B")
+
+			-- A answers from its next autosave; B takes the lock on its next try.
+			world.clock:advance(interval + 10)
+			expect(onA:wasKicked()).toBe(true)
+			expect(a:counters().counters.forceReleases).toBe(1)
+			local profileB = b.store:get(onB)
+			assert(profileB, "expected B to load")
+			expect(profileB.data.coins).toBe(42)
+			expect(b:counters().counters.locksStolen).toBe(0)
+			expect(world:stored(1).meta.session.sessionId).toBe("session-B")
+		end
+	end)
+
+	T.it("takes the lock when the owner ignores the request for forceReleaseTimeout seconds", function()
 		local world = World.new()
 		-- A can't hear pings and only saves every 5 minutes: it holds the lock but won't answer.
 		local a = world:server("A", { messagingService = false, autosaveInterval = 300 })
-		local b = world:server("B")
+		local b = world:server("B", { autosaveInterval = 60, forceReleaseTimeout = 90 })
 		a.store:bindPlayers()
 		b.store:bindPlayers()
 		local onA = a:join(1)
@@ -108,18 +140,18 @@ T.describe("Data.Store session locks", function()
 		world.clock:advance(10)
 
 		local onB = b:join(1)
-		world.clock:advance(39)
+		world.clock:advance(89)
 		expect(b.store:get(onB)).toBeNil()
 		world.clock:advance(1)
 		local profileB = b.store:get(onB)
-		assert(profileB, "expected B to take the lock after 40 s")
+		assert(profileB, "expected B to take the lock after 90 s")
 		expect(profileB.data.coins).toBe(10)
 		expect(b:counters().counters.locksStolen).toBe(1)
 
-		-- A keeps playing on stale data; none of it may land on top of B's.
+		-- A keeps playing on stale data; none of it may land on top of B's. A's next save is at 300 s.
 		profileA.data.coins = 999
 		profileB.data.coins = 11
-		world.clock:advance(250)
+		world.clock:advance(200)
 		expect(profileA:isActive()).toBe(false)
 		expect(onA:wasKicked()).toBe(true)
 		expect(a:counters().counters.locksLost).toBe(1)
@@ -144,9 +176,10 @@ T.describe("Data.Store session locks", function()
 	T.it("gives up with 'locked' when it never gets its turn, without touching the data", function()
 		local world = World.new()
 		world:seed(1, World.document(World.progress(4), { session = world:lock("Z") }))
-		local b = world:server("B")
+		local b = world:server("B", { autosaveInterval = 60, forceReleaseTimeout = 90 })
 		b.store:bindPlayers()
 		-- A third server keeps replacing B's release request with its own, so B's never ages.
+		-- B gives up forceReleaseTimeout + 60 s after it started.
 		world.dss:setBeforeCommit(function(ctx)
 			if ctx.attempt == 1 then
 				local value = world:stored(1)
@@ -155,7 +188,7 @@ T.describe("Data.Store session locks", function()
 			end
 		end)
 		local player = b:join(1)
-		world.clock:advance(99)
+		world.clock:advance(149)
 		expect(player:wasKicked()).toBe(false)
 		world.clock:advance(1)
 		world.dss:setBeforeCommit(nil)

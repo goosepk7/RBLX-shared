@@ -63,6 +63,10 @@ T.describe("Data.check", function()
 		path, reason = problem({ name = string.char(255, 254) })
 		expect(path).toBe("data.name")
 		expect(reason).toContain("UTF-8")
+
+		path, reason = problem({ pets = { [string.char(255) .. "cat"] = 1 } })
+		expect(path).toBe("data.pets")
+		expect(reason).toContain("key that is not valid UTF-8")
 	end)
 
 	T.it("allows the same table twice when it isn't a cycle", function()

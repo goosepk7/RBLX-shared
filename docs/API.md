@@ -69,27 +69,29 @@ player is one key, `Player_<userId>`, holding `{ data, meta }`.
 
 | API | Notes |
 |---|---|
-| `Data.Store.new({ name, template, version?, migrations?, reconcile?, scope?, key?, kickMessages?, ... })` | `version` defaults to 1. `migrations[v]` turns version v - 1 data into v (change it in place, or return new data); every step from 2 to `version` is required. `template` must be storable; keys missing from loaded data are added unless `reconcile = false`. Timing options: `autosaveInterval` 60, `lockTimeout` 600, `forceReleaseTimeout` 40, `lockRetryInterval` 5, `receiptWait` 15 (seconds). Services and clocks are injectable for tests: `dataStoreService`, `messagingService` (`false` turns pings off), `players`, `task`, `now`, `clock`, `decisions`, `bindToClose`. |
+| `Data.Store.new({ name, template, version?, migrations?, reconcile?, scope?, key?, kickMessages?, ... })` | `version` defaults to 1. `migrations[v]` turns version v - 1 data into v (change it in place, or return new data); every step from 2 to `version` is required. `template` must be storable; keys missing from loaded data are added unless `reconcile = false`. Timing options, in seconds: `autosaveInterval` 60, `forceReleaseTimeout` `autosaveInterval` + 30 (must be longer than `autosaveInterval`), `lockTimeout` 600 (must be longer than `forceReleaseTimeout`), `lockRetryInterval` 5, `receiptWait` 15. Services and clocks are injectable for tests: `dataStoreService`, `messagingService` (`false` turns pings off), `players`, `task`, `now`, `clock`, `decisions`, `bindToClose`. |
 | `store:bindPlayers({ kick?, bindToClose? })` | Loads on join, releases on leave, flushes on BindToClose. Kicks with a friendly message when a load fails or another server takes the profile. |
 | `store:loadAsync(player)` | `(profile?, err?)`. `err` is `"dataStore"`, `"locked"`, `"corrupt"`, `"migration"`, `"newerVersion"`, `"closing"` or `"left"`; nothing is written on failure. |
-| `store:get(player)`, `:getByUserId(id)`, `:isLoaded(player)`, `:waitForProfileAsync(player, timeout?)` | `waitForProfileAsync` returns nil after 30 s or a failed load. |
+| `store:get(player)`, `:getByUserId(id)`, `:isLoaded(player)`, `:waitForProfileAsync(player, timeout?)` | `waitForProfileAsync` returns nil once the load fails, the player leaves or `timeout` passes. Without a timeout it waits out a load under way, however long the lock takes, and gives up with a warning if no load starts within 30 s. |
 | `profile.data`, `profile.meta`, `profile.Released` | Change `data` freely while active; changes after release aren't saved. `Released` fires once with `"left"`, `"shutdown"`, `"forceReleased"`, `"lockLost"` or `"removed"`. |
 | `profile:saveAsync()`, `:isActive()`, `:hasReceipt(purchaseId)` | Autosave and release already cover normal play. |
 | `store:releaseAsync(player)`, `store:closeAsync(timeout?)` | A release that fails keeps the lock and retries every 10 s. `closeAsync` waits up to 25 s. |
 | `store:processReceipt(receipt, grant)` | The `ProcessReceipt` body. `grant(profile, receipt)` changes `profile.data` and may return false to decline for now. It runs at most once per PurchaseId, and `PurchaseGranted` goes back only after the grant is saved. The last 100 PurchaseIds are kept per profile. |
 | `store.Loaded`, `store.Released`, `store.ReceiptGranted` | `(player, profile)`, `(player?, profile, reason)`, `(player?, profile, receipt)`. Confirm purchases to the client and log them to analytics from `ReceiptGranted`. |
 | `store:viewAsync(userId)`, `:updateOfflineAsync(userId, edit)`, `:removeAsync(userId)` | Support tools. An offline edit refuses while the player is online elsewhere; `removeAsync` erases the key (and kicks if loaded here). |
-| `store:getDiagnostics()`, `Data.getDiagnostics()` | The DataDiagnostics view: counters, per-profile save times, sizes and last error, the 20 most recent errors, and DataStore request budgets. |
+| `store:getDiagnostics()`, `Data.getDiagnostics()` | The DataDiagnostics view: counters, per-profile save times, sizes and last error, the 20 most recent errors, and DataStore request budgets (`budgets.UpdateAsync` is the one every load and save spends). |
 | `Data.check(value, rootName?)`, `Data.estimateSize(value)` | `(ok, path?, reason?, size?)`: can a DataStore hold this exactly? Names the first bad path, e.g. `data.stats.speed: NaN`. |
 | `Data.isRetryable(err)`, `Data.MAX_SIZE`, `Data.MAX_RECEIPTS` | |
 
 Session locks: a lock whose heartbeat (each save) is older than `lockTimeout` belongs to a dead
 server and is taken at once. A live owner is asked to release, through `meta` and a
-MessagingService ping; it saves and hands over, and gets `forceReleaseTimeout` seconds before the
-lock is taken anyway. Every save checks ownership inside its `UpdateAsync` transform, so a server
-that lost the lock never overwrites newer data. Data that can't be stored as is (NaN, infinity,
-mixed or sparse tables, non-string keys, Roblox types, over 4 MB) is never written; the save fails
-with the path, and a release hands the lock back over the last good save.
+MessagingService ping; it saves and hands over. An owner that missed the ping sees the request at
+its next autosave, which always comes before `forceReleaseTimeout` runs out, so the lock is only
+taken from a server that is gone or can't save. Every save checks ownership inside its
+`UpdateAsync` transform, so a server that lost the lock never overwrites newer data. Data that
+can't be stored as is (NaN, infinity, invalid UTF-8, mixed or sparse tables, non-string keys,
+Roblox types, over 4 MB) is never written; the save fails with the path, and a release hands the
+lock back over the last good save.
 
 ```luau
 local Profiles = Shared.Data.Store.new({

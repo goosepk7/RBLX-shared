@@ -184,6 +184,7 @@ T.describe("Data diagnostics", function()
 		expect(diag.recentErrors[1].op).toBe("save")
 		expect(diag.recentErrors[1].key).toBe("Player_2")
 		expect(diag.budgets.GetAsync).toBeType("number")
+		expect(diag.budgets.UpdateAsync).toBeType("number")
 
 		-- Diagnostics are a snapshot the panel can't use to change the store.
 		diag.counters.saves = 1000
