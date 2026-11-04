@@ -1,7 +1,7 @@
 # RBLX-shared status
 
-**Phase:** 3, Shared v0.2 (v0.1 is merged and signed off; Analytics, Strings, Audio, VFX, Settings and Admin merged; progression, monetization and their screens in review)
-**Version:** 0.2.0 in progress
+**Phase:** 3 done: Shared v0.2 is merged (Analytics, Strings, Audio, VFX, Settings and Admin in #16-#17; progression, monetization and their screens in #19). Next (§12 step 4): the games wire v0.2 in.
+**Version:** 0.2.0
 
 ## Owner to-do
 - Before the games wire up Net: open `NetSmoke.rbxl` in Studio and press Play. It should print `NET SMOKE: PASS (48 checks)`; if it doesn't, paste the `FAIL` lines into the project. Where to get the file: [Studio smoke test for Net](TOOLING.md#studio-smoke-test-for-net).

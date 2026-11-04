@@ -1,7 +1,7 @@
 [package]
 name = "goosepk7/rblx-shared"
 description = "Shared framework for +1 Stilts and Evolve a Car"
-version = "0.1.0"
+version = "0.2.0"
 license = "UNLICENSED"
 authors = ["goosepk7"]
 realm = "shared"
