@@ -156,16 +156,12 @@ local Stories: { Story } = {
 				{
 					name = "Prompt",
 					build = function()
-						return center(
-							(
-								Kit.Chip.new({
-									Text = "Enter Pit",
-									KeyHint = "E",
-									MaxWidth = 170,
-									OnActivated = function() end,
-								})
-							)
-						)
+						return center((Kit.Chip.new({
+							Text = "Enter Pit",
+							KeyHint = "E",
+							MaxWidth = 170,
+							OnActivated = function() end,
+						})))
 					end,
 				},
 				{
