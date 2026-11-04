@@ -4,7 +4,9 @@
 **Version:** 0.1.0 (unreleased)
 
 ## Owner to-do
-- Nothing right now. After publish: create an Open Cloud key and run the upload command in docs/TOOLING.md.
+- Nothing right now.
+- After publish: create an Open Cloud key and run the upload command in docs/TOOLING.md.
+- After publish: create a second Open Cloud key with the data store list and read scopes, add it to each game repo as the `ROBLOX_API_KEY` secret (and the experience id as the `ROBLOX_UNIVERSE_ID` variable), and add the daily backup workflow from docs/TOOLING.md.
 
 ## Blockers
 - None.
@@ -16,6 +18,10 @@
 
 ## Known weak spots (core)
 - `Net.RobloxTransport` (the RemoteEvent wiring) can't run under lune; every test goes through the loopback transport, which mirrors Roblox's documented argument rules. A one-click Studio smoke script lands before the games wire Net up.
+- Data runs against fakes of DataStoreService and MessagingService. The fakes follow Roblox's documented behavior (transform reruns on conflict, request budgets, error codes), but the real services haven't been exercised yet. First Studio session: join, leave, rejoin, a teleport between two servers, and check `Data.getDiagnostics()`.
+- Data, known limit: when three or more servers want the same player's lock at once, their release requests keep replacing each other, so each waits out its deadline and gives up with "locked" (the player is kicked to retry; the data is untouched). Safe, and rare enough to leave.
+- Data: a player rejoining right after a server crash waits up to 90 s, because a crashed server's lock looks alive until the release wait runs out.
+- `tools/backup_profiles` is tested against a mock of the Open Cloud data stores v2 API; the real endpoint's response shape is an assumption until the first keyed run. The tool fails loudly, rather than backing up nothing, if the list response looks different.
 
 ## Tooling, CI, harness (`shared/tooling`)
 - [x] Repo skeleton: Rojo projects, wally.toml, rokit toolchain pins, StyLua, Selene, `.luaurc`, pre-commit
@@ -32,9 +38,11 @@
 - [x] Signal and Util (Log, Deep, Roblox helpers)
 - [x] AntiExploit: strike registry, three strikes flags, flag log for the Admin panel
 - [x] Net: typed remotes, schema validation, rate limits, strikes for malformed traffic, local and cross-server kill switch, metrics, loopback transport for tests
-- [ ] Data: session-locked profiles, autosave, retries, migrations, idempotent receipts, diagnostics, `tools/backup_profiles`
+- [x] Data: session-locked profiles, autosave every 60 s and on leave, retries with backoff, migrations, BindToClose flush, idempotent receipts, refusal to write unstorable data, diagnostics API (`getDiagnostics`) for the Admin panel's DataDiagnostics view
+- [x] `tools/backup_profiles`: daily backups and one-player restores through Open Cloud; the scheduled workflow for game repos is in docs/TOOLING.md
+- [ ] DataDiagnostics panel UI (with Admin v0.2)
 - [ ] Economy: currencies, earn and spend, multipliers, boosts, leaderstats
-- [x] docs/API.md sections for AntiExploit, Net, Signal, Types, Util (Data and Economy land with their modules)
+- [x] docs/API.md sections for AntiExploit, Data, Net, Signal, Types, Util (Economy lands with its module)
 
 ## UI kit (`shared/ui`)
 - [x] Theme tokens (base palette + Stilts/Car accents), fonts, type scale, shapes, motion (`src/UI/Tokens.luau`)

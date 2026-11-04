@@ -84,4 +84,26 @@ function Roblox.placeId(): number
 	return dataModel.PlaceId
 end
 
+local fallbackGuids = 0
+
+-- A unique id: HttpService:GenerateGUID in Roblox, a process-unique string under lune.
+function Roblox.guid(): string
+	local dataModel = game :: any
+	if dataModel == nil then
+		fallbackGuids += 1
+		return string.format("lune-%d-%d", os.time(), fallbackGuids)
+	end
+	return dataModel:GetService("HttpService"):GenerateGUID(false)
+end
+
+-- game:BindToClose(callback). Errors outside Roblox; pass a bindToClose dependency there.
+function Roblox.bindToClose(callback: () -> ())
+	local dataModel = game :: any
+	if dataModel == nil then
+		missing("game:BindToClose")
+		return
+	end
+	dataModel:BindToClose(callback)
+end
+
 return Roblox
