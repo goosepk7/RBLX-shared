@@ -14,6 +14,7 @@ local RBLXShared = {
 	VERSION = "0.1.0",
 
 	Test = require("@self/Test"),
+	UI = require("@self/UI"),
 }
 
 return RBLXShared

@@ -12,3 +12,10 @@ Defaults chosen where the brief is silent. Newest last.
 | 2026-11-04 | Toolchain | rokit (`rokit.toml`) pins rojo 7.7.1, lune 0.11.1, StyLua 2.6.0, Selene 0.31.0, luau-lsp 1.70.0, wally 0.3.2. | Node-free, one install command, same versions locally and in CI. |
 | 2026-11-04 | Tools | Lune tools use `.luau` (`lune run tools/upload_assets --all`). | Lune resolves the extension; keeps one source extension in the repo. |
 | 2026-11-04 | Wally | `registry` points at `goosepk7/wally-index` (to be created); games use the submodule until then. | Brief §1.2 / §13.3 default. |
+| 2026-11-04 | UI | Token sizes are authored for a 390 pt short edge; `UIScale = clamp(short/390, 0.92, 1.6)`. | 0.92 keeps the smallest tappable control (48 px) at or above the 44 px minimum on small Androids; 1.6 stops tablets/PC turning the HUD into billboards. |
+| 2026-11-04 | UI | White label text on saturated fills gets a 1.5 px stroke in the fill's edge color; Warning and Gold fills use Ink text. | The brief's white-on-orange/green fails contrast on its own (about 2:1); the stroke keeps the look and makes it readable. |
+| 2026-11-04 | UI | Disabled dimming walks descendants and blends transparency instead of using CanvasGroup. | A CanvasGroup per button is a render target each; too much texture memory on mid-range phones. |
+| 2026-11-04 | UI | Kit sounds go through `UI.Hooks`; Audio registers a handler in v0.2. | UI ships in v0.1 before Audio; avoids a circular dependency. |
+| 2026-11-04 | UI | `SecondaryEdge` accents (`#4A3DB8` Stilts, `#C77606` Car) and `inkSoft`/`lineDark` were added to the tokens. | The brief gives no edge for secondary fills or Paper buttons; derived by darkening ~22% toward Ink. |
+| 2026-11-04 | UI | Icon PNGs are committed next to their SVG sources. | The uploader and owner can work without Python; SVGs stay the source of truth. |
+| 2026-11-04 | UI | Gallery stories live in `src/UI/Gallery/Stories.luau` (not `tests/ui_stories.lua`). | `/uigallery` must run in the shipped game; `tests/UI/Stories.spec.luau` checks every variant has a story. |

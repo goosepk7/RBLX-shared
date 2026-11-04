@@ -23,4 +23,11 @@
 - [ ] Types, Net, Data, Economy
 
 ## UI kit (`shared/ui`)
-- [ ] Theme tokens, kit components, gallery, icons
+- [x] Theme tokens (base palette + Stilts/Car accents), fonts, type scale, shapes, motion (`src/UI/Tokens.luau`)
+- [x] Kit: Button, IconButton, Chip, Card, Panel, Modal, Drawer, Confirm, Tabs, ProgressBar, Stat, CurrencyPill, ListRow, Grid, Tooltip, Toast, Banner, NumberPop, Confetti
+- [x] SafeArea (notch + topbar insets, viewport UIScale, HUD anchors) and ScreenManager (push/pop, 2-modal cap, input mode, console focus, cinematic mode)
+- [x] `/uigallery`: every component and variant, Stilts/Car accent toggle
+- [x] 16 core icons (SVG source + 256/64 PNG) and `tools/rasterize.py`
+- [ ] Icon entries in `assets/manifest.json` (after the Assets PR lands)
+- [ ] Wire `Hooks.setSoundHandler` from shared Audio (v0.2)
+- Weak spots, honestly: the kit has not been seen in Studio yet. Layout and press feel are written to spec but unverified on a device until the owner opens `/uigallery`. Haptics on phones depend on Roblox's touch motor support, which is limited.
