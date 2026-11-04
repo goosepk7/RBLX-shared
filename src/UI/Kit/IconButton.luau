@@ -117,7 +117,7 @@ function IconButton.new(props: Props): (Frame, Handle)
 	local function setBadge(n: number?)
 		local count = n or 0
 		badge.Visible = count > 0
-		badgeText.Text = if count > 99 then "99+" else Format.compact(count)
+		badgeText.Text = if count > 99 then "99+" else Format.showCompact(count)
 	end
 
 	local conns = Common.bindPress(ef, edgeSize, {

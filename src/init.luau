@@ -13,6 +13,7 @@
 local RBLXShared = {
 	VERSION = "0.1.0",
 
+	Analytics = require("@self/Analytics"),
 	AntiExploit = require("@self/AntiExploit"),
 	Assets = require("@self/Assets"),
 	Data = require("@self/Data"),
@@ -20,6 +21,7 @@ local RBLXShared = {
 	Loc = require("@self/Loc"),
 	Net = require("@self/Net"),
 	Signal = require("@self/Signal"),
+	Strings = require("@self/Strings"),
 	Sim = require("@self/Sim"),
 	Test = require("@self/Test"),
 	Types = require("@self/Types"),
