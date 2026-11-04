@@ -54,6 +54,71 @@ T.describe("Sim.Tune.solve", function()
 		expect(r.value).toBeNear(7.1, 1e-9)
 	end)
 
+	T.it("band targets: lands on the near edge when the far end overshoots the band", function()
+		-- metric = 10x; want 400..450. Current 1 (10); the far end (100 -> 1000) overshoots.
+		local up = Sim.Tune.solve({
+			name = "x",
+			min = 0,
+			max = 100,
+			current = 1,
+			step = 0.5,
+			evaluate = function(x)
+				return 10 * x
+			end,
+			target = { min = 400, max = 450 },
+		})
+		expect(up.ok).toBe(true)
+		expect(up.value).toBe(40)
+		expect(up.metric).toBe(400)
+
+		-- Decreasing: metric = 1000 / x; want 40..50. Current 1 (1000); far end 100 -> 10.
+		local down = Sim.Tune.solve({
+			name = "y",
+			min = 1,
+			max = 100,
+			current = 1,
+			step = 0.5,
+			evaluate = function(x)
+				return 1000 / x
+			end,
+			target = { min = 40, max = 50 },
+		})
+		expect(down.ok).toBe(true)
+		expect(down.value).toBe(20)
+		expect(down.metric).toBe(50)
+
+		-- minimalChange = false still has to bisect when the far end is outside the band.
+		local far = Sim.Tune.solve({
+			name = "z",
+			min = 0,
+			max = 100,
+			current = 1,
+			minimalChange = false,
+			evaluate = function(x)
+				return 10 * x
+			end,
+			target = { min = 400, max = 450 },
+		})
+		expect(far.ok).toBe(true)
+		expect(far.metric >= 400 and far.metric <= 450).toBe(true)
+	end)
+
+	T.it("band targets: reports a metric that jumps over the whole band", function()
+		local r = Sim.Tune.solve({
+			name = "gate",
+			min = 0,
+			max = 10,
+			current = 1,
+			evaluate = function(x)
+				return if x < 5 then 0 else 100
+			end,
+			target = { min = 40, max = 60 },
+		})
+		expect(r.ok).toBe(false)
+		expect(r.changed).toBe(false)
+		expect(r.reason).toContain("jumps over the band")
+	end)
+
 	T.it("reports when bounds cannot reach the target, and never exceeds them", function()
 		local evaluated: { number } = {}
 		local r = Sim.Tune.solve({
