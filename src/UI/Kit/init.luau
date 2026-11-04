@@ -24,6 +24,7 @@ return {
 	ProgressBar = require("@self/ProgressBar"),
 	Stat = require("@self/Stat"),
 	Tabs = require("@self/Tabs"),
+	TextInput = require("@self/TextInput"),
 	Toast = require("@self/Toast"),
 	Tooltip = require("@self/Tooltip"),
 }

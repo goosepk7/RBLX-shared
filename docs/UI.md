@@ -65,6 +65,7 @@ placeholder card instead of a blank square. Constructors return `(root, handle)`
 | `ListRow` | Default, Pinned, Gold, Silver, Bronze | Rank disc, icon, title/subtitle, trailing value or action. Pinned = "your rank". |
 | `Grid` | Scroll, Static | Auto-cell grid; columns follow width. |
 | `Tooltip` | Ink, Accent | `Tooltip.attach(target, text)`. |
+| `TextInput` | Default, Success, Danger | Single-line inset field, 48 px tall: Paper-2 at rest, Info border while focused, Success/Danger border plus a helper line (`setVariant(v, message)`) for results. `MaxLength` counts characters (default 64), `Transform` rewrites typed text (`string.upper` for codes), `OnSubmit` fires on Enter/Done unless Disabled or Loading. Typing again clears a stale result. |
 | `Toast` | Success, Danger, Info, Warning, Gold, Badge | Lane under the banner lane, max 3 visible, auto-dismiss. Use `area.toasts.show`. |
 | `Banner` | Primary, Warning, Danger, Success, Info, Gold | Top-center strip, queued, slides in, auto-dismiss. Use `area.banners.show`. |
 | `NumberPop` | Gain, Loss, Gold | "+N" rises 56 px with jitter and a scale punch over 0.7 s; gains of 10% or more add confetti and "thump". |

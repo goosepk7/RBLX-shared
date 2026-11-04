@@ -288,6 +288,55 @@ local Stories: { Story } = {
 		),
 	},
 	{
+		component = "TextInput",
+		cell = { x = 320, y = 130 },
+		variants = concat(
+			variantsOf(Kit.TextInput.Variants, function(name)
+				return center((Kit.TextInput.new({
+					Placeholder = "Enter a code",
+					Text = if name == "Default" then nil else "TALLER",
+					Variant = name :: any,
+					Message = if name == "Success"
+						then "Code redeemed"
+						elseif name == "Danger" then "That code expired"
+						else nil,
+					Width = 280,
+				})))
+			end),
+			{
+				{
+					name = "Code (uppercase)",
+					build = function()
+						return center((Kit.TextInput.new({
+							Placeholder = "Enter a code",
+							Icon = "icon_codes",
+							MaxLength = 20,
+							Transform = string.upper,
+							Width = 280,
+						})))
+					end,
+				},
+				{
+					name = "Disabled",
+					build = function()
+						return center((Kit.TextInput.new({ Placeholder = "Disabled", Disabled = true, Width = 280 })))
+					end,
+				},
+				{
+					name = "Loading",
+					build = function()
+						return center((Kit.TextInput.new({
+							Placeholder = "Checking",
+							Text = "RELEASE",
+							Loading = true,
+							Width = 280,
+						})))
+					end,
+				},
+			}
+		),
+	},
+	{
 		component = "ProgressBar",
 		variants = variantsOf(Kit.ProgressBar.Variants, function(name)
 			local root, bar = Kit.ProgressBar.new({
