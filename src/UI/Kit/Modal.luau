@@ -5,7 +5,7 @@
 	(§5.4) is enforced; Modal.new alone is for the gallery and tests.
 
 		local modal = Kit.Modal.new({ Content = panelRoot, DismissOnBackdrop = true })
-		modal.open(screenGui)
+		modal.open(area.modalLayer, area.backdropLayer)
 ]]
 
 local Create = require("../Create")
@@ -26,7 +26,9 @@ export type Props = {
 
 export type Handle = {
 	root: Frame,
-	open: (parent: Instance) -> (),
+	-- backdropParent: a full-screen (no insets) layer so the dim covers the
+	-- notch bands; SafeArea.backdropLayer. Defaults to `parent`.
+	open: (parent: Instance, backdropParent: Instance?) -> (),
 	close: () -> (),
 	isOpen: () -> boolean,
 }
@@ -73,6 +75,10 @@ function Modal.new(props: Props): Handle
 	content.Parent = holder
 
 	local opened = false
+	-- The backdrop may live in another ScreenGui; it goes when the modal goes.
+	root.Destroying:Connect(function()
+		backdrop:Destroy()
+	end)
 
 	local handle: Handle
 	local function close()
@@ -86,6 +92,7 @@ function Modal.new(props: Props): Handle
 		t.Completed:Once(function()
 			if not opened then
 				root.Visible = false
+				backdrop.Visible = false
 				if props.OnClosed then
 					props.OnClosed()
 				end
@@ -93,7 +100,9 @@ function Modal.new(props: Props): Handle
 		end)
 	end
 
-	local function open(parent: Instance)
+	local function open(parent: Instance, backdropParent: Instance?)
+		backdrop.Parent = backdropParent or root
+		backdrop.Visible = true
 		root.Parent = parent
 		opened = true
 		root.Visible = true

@@ -74,7 +74,21 @@ games never place HUD elements by hand: `TopLeft` (stacked currency pills),
 `TopCenter` (banner lane lives here), `TopRight` (gear and bag), `RightRail`
 (52 px buttons, 8 px gap), `BottomRight` (primary actions in the thumb arc),
 `BottomCenter` (prompt chip), `Center`. There is deliberately no bottom-left
-anchor: that is the thumbstick zone (`Layout.thumbstickZone`).
+anchor: that is the thumbstick zone (`Layout.thumbstickZone`, matching
+DynamicThumbstick's left 40% x bottom two-thirds in landscape).
+
+Anchor geometry comes from `Layout.anchors`, and `tests/UI/Layout.spec.luau`
+checks every input-sinking anchor against the thumbstick zone at four
+viewports, with and without notch insets. `BottomCenter` spans exactly the gap
+between the thumbstick zone and the thumb arc (about 170 px on a 6.1" phone),
+so prompt chips placed there must pass `MaxWidth` (the anchor's width at
+reference scale); longer translations truncate instead of growing into the
+stick. The top-left currency pills may overlap the stick zone on phones; that
+is safe only because the pill body is not `Active` (see `CurrencyPill`).
+
+Modals and drawers render their content in `area.modalLayer` (safe area, above
+the HUD) and their dim/scrim in `area.backdropLayer` (full screen, no insets),
+so the 55% dim also covers the notch bands.
 
 `ScreenManager:setCinematic(true)` hides every anchor except the banner lane,
 plus screens, modals and toasts, for world unlock, rebirth and Iron Build moments.

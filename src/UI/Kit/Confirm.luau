@@ -4,7 +4,7 @@
 	confirm button is the visible primary action; Destructive turns it into
 	the big red confirm used by Rebirth (§5.5).
 
-		Kit.Confirm.show(screenGui, {
+		Kit.Confirm.show(area.modalLayer, {
 			Title = Loc.t("rebirth.title"), Message = Loc.t("rebirth.body"),
 			ConfirmText = Loc.t("rebirth.go"), CancelText = Loc.t("common.cancel"),
 			Variant = "Destructive", OnResult = function(ok) ... end,
@@ -91,7 +91,7 @@ function Confirm.build(props: Props, onChoice: (boolean) -> ()): Frame
 	return root
 end
 
-function Confirm.show(parent: Instance, props: Props): Modal.Handle
+function Confirm.show(parent: Instance, props: Props, backdropParent: Instance?): Modal.Handle
 	local modal: Modal.Handle
 	local answered = false
 	local content = Confirm.build(props, function(ok: boolean)
@@ -110,7 +110,7 @@ function Confirm.show(parent: Instance, props: Props): Modal.Handle
 			modal.root:Destroy()
 		end,
 	})
-	modal.open(parent)
+	modal.open(parent, backdropParent)
 	return modal
 end
 

@@ -42,6 +42,49 @@ T.describe("UI.Layout", function()
 		end
 	end)
 
+	T.it("thumbstick zone matches DynamicThumbstick (left 40%, bottom two-thirds)", function()
+		local z = Layout.thumbstickZone(844, 390)
+		expect(z.x).toBe(0)
+		expect(z.y).toBeNear(130, 1e-9)
+		expect(z.w).toBeNear(337.6, 1e-9)
+		expect(z.h).toBeNear(260, 1e-9)
+	end)
+
+	T.it("no input-sinking HUD anchor overlaps the thumbstick zone (§5.8)", function()
+		-- TopLeft holds non-Active currency pills (touches pass through to the
+		-- stick) and Center is the full-screen modal area; both are exempt.
+		local exempt = { TopLeft = true, Center = true }
+		local viewports = { { 844, 390 }, { 800, 360 }, { 1194, 834 }, { 1920, 1080 } }
+		local insetSets = {
+			{ left = 0, top = 0, right = 0, bottom = 0 },
+			{ left = 47, top = 0, right = 47, bottom = 21 },
+			{ left = 47, top = 58, right = 47, bottom = 21 },
+		}
+		for _, vp in viewports do
+			local w, h = vp[1], vp[2]
+			local s = Layout.scaleFor(w, h)
+			local stick = Layout.thumbstickZone(w, h)
+			local arc = Layout.thumbArcZone(w, h)
+			for _, insets in insetSets do
+				local content = Layout.safeRect(w, h, insets)
+				local rects = Layout.anchors(w, h, content, s)
+				for name, r in rects do
+					local where = `{name} at {w}x{h} insets {insets.left}/{insets.top}`
+					if not exempt[name] and Layout.overlaps(r, stick) then
+						error(`{where} overlaps the thumbstick zone`)
+					end
+					if not Layout.contains({ x = 0, y = 0, w = w, h = h }, r) then
+						error(`{where} leaves the screen`)
+					end
+				end
+				local chip = rects.BottomCenter
+				expect(chip.w > 0).toBe(true)
+				expect(chip.x >= stick.x + stick.w).toBe(true)
+				expect(chip.x + chip.w <= arc.x).toBe(true)
+			end
+		end
+	end)
+
 	T.it("rect helpers", function()
 		local a = { x = 0, y = 0, w = 10, h = 10 }
 		expect(Layout.overlaps(a, { x = 9, y = 9, w = 5, h = 5 })).toBe(true)

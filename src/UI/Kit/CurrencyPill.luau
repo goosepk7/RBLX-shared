@@ -58,6 +58,10 @@ function CurrencyPill.new(props: Props): (Frame, Handle)
 	local disabled = props.Disabled == true
 	local loading = props.Loading == true
 
+	-- The pill body is deliberately not Active: on phones the stacked
+	-- top-left pills can reach into the thumbstick zone (Layout.thumbstickZone),
+	-- and inactive frames let those touches through to the stick. Only the
+	-- compact "+" disc sinks input. Do not turn the whole pill into a button.
 	local ef = Common.edgeFace({
 		height = h,
 		edge = edgeSize,

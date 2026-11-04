@@ -109,28 +109,46 @@ function Gallery.mount(opts: Options?): ScreenGui
 		end
 	end
 
-	local gui = Create.new("ScreenGui", {
-		Name = "UIGallery",
-		DisplayOrder = Tokens.layers.gallery,
-		ResetOnSpawn = false,
-		ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	})
-	local backdrop = Create.new("Frame", {
-		Name = "Backdrop",
+	local function screenGui(name: string, order: number, fullBleed: boolean): ScreenGui
+		return Create.new("ScreenGui", {
+			Name = name,
+			DisplayOrder = order,
+			ResetOnSpawn = false,
+			IgnoreGuiInset = fullBleed,
+			ScreenInsets = if fullBleed then Enum.ScreenInsets.None else Enum.ScreenInsets.CoreUISafeInsets,
+			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		})
+	end
+	-- Stack: full-bleed paper background, safe-area gallery panel, full-bleed
+	-- dim layer for modal backdrops, safe-area layer for modal content.
+	local background = screenGui("UIGalleryBackground", Tokens.layers.gallery - 1, true)
+	local gui = screenGui("UIGallery", Tokens.layers.gallery, false)
+	local dimGui = screenGui("UIGalleryDim", Tokens.layers.gallery + 1, true)
+	local overlayGui = screenGui("UIGalleryOverlay", Tokens.layers.gallery + 2, false)
+	Create.new("Frame", {
+		Name = "Fill",
 		BackgroundColor3 = Theme.color("paper2"),
 		BorderSizePixel = 0,
 		Size = UDim2.fromScale(1, 1),
-		Parent = gui,
+		Parent = background,
 	})
-	local scaled = Create.group({ Name = "Scaled", Parent = backdrop })
+	local scaled = Create.group({ Name = "Scaled", Parent = gui })
 	local uiScale = Create.new("UIScale", { Parent = scaled })
-	local overlay = Create.group({ Name = "Overlay", ZIndex = 60, Parent = gui })
+	local overlay = Create.group({ Name = "Overlay", Parent = overlayGui })
+	local dim = Create.group({ Name = "Backdrops", Parent = dimGui })
+	gui.Destroying:Connect(function()
+		background:Destroy()
+		dimGui:Destroy()
+		overlayGui:Destroy()
+	end)
 
 	local env: Stories.Env = {
 		icon = o.icon or fallbackIcon,
 		overlay = function()
 			return overlay
+		end,
+		backdrop = function()
+			return dim
 		end,
 		inputMode = function()
 			local uis = game:GetService("UserInputService")
@@ -193,7 +211,10 @@ function Gallery.mount(opts: Options?): ScreenGui
 	end)
 	gui.Destroying:Connect(disconnect)
 
+	background.Parent = parent
 	gui.Parent = parent
+	dimGui.Parent = parent
+	overlayGui.Parent = parent
 	rescale()
 	render()
 	mounted = gui

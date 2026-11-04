@@ -14,7 +14,8 @@ local Kit = require("../Kit")
 
 export type Env = {
 	icon: (name: string) -> string, -- resolves an icon asset name to an image id
-	overlay: () -> GuiObject, -- full-screen layer for modals, drawers, pops
+	overlay: () -> GuiObject, -- safe-area layer for modal/drawer content and pops
+	backdrop: () -> GuiObject, -- full-bleed layer under `overlay` for dims and scrims
 	inputMode: () -> "Touch" | "Gamepad" | "Keyboard",
 }
 
@@ -156,7 +157,14 @@ local Stories: { Story } = {
 					name = "Prompt",
 					build = function()
 						return center(
-							(Kit.Chip.new({ Text = "Enter Pit", KeyHint = "E", OnActivated = function() end }))
+							(
+								Kit.Chip.new({
+									Text = "Enter Pit",
+									KeyHint = "E",
+									MaxWidth = 170,
+									OnActivated = function() end,
+								})
+							)
 						)
 					end,
 				},
@@ -228,7 +236,7 @@ local Stories: { Story } = {
 						modal.root:Destroy()
 					end,
 				})
-				modal.open(env.overlay())
+				modal.open(env.overlay(), env.backdrop())
 			end)
 		end),
 	},
@@ -247,7 +255,7 @@ local Stories: { Story } = {
 						Parent = drawer.body,
 					})
 				end
-				drawer.open(env.overlay())
+				drawer.open(env.overlay(), env.backdrop())
 			end)
 		end),
 	},
@@ -262,7 +270,7 @@ local Stories: { Story } = {
 					CancelText = "Not yet",
 					Variant = name :: any,
 					OnResult = function() end,
-				})
+				}, env.backdrop())
 			end)
 		end),
 	},

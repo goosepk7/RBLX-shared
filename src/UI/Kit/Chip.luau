@@ -25,6 +25,10 @@ export type Props = {
 	Variant: Variant?,
 	Icon: string?,
 	KeyHint: string?, -- e.g. "E" or "ButtonX" glyph text, shown in a keycap
+	-- Total width cap (px at reference scale). Longer text truncates with "…"
+	-- instead of growing; prompt chips in SafeArea's BottomCenter must set it
+	-- so a long translation can never grow into the thumbstick zone.
+	MaxWidth: number?,
 	OnActivated: (() -> ())?,
 }
 
@@ -125,6 +129,16 @@ function Chip.new(props: Props): (Frame, Handle)
 		ZIndex = 3,
 		Parent = row,
 	})
+
+	if props.MaxWidth then
+		local reserved = Tokens.space.md * 2
+			+ (if props.KeyHint then 28 + Tokens.space.sm else 0)
+			+ (if props.Icon then Tokens.size.iconSm + Tokens.space.sm else 0)
+		Create.new("UISizeConstraint", {
+			MaxSize = Vector2.new(math.max(0, props.MaxWidth - reserved), math.huge),
+			Parent = label,
+		})
+	end
 
 	local function setKeyHint(hint: string?)
 		keycap.Visible = hint ~= nil

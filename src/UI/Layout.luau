@@ -35,10 +35,12 @@ function Layout.px(tokenSize: number, scale: number): number
 	return tokenSize * scale
 end
 
---- Area reserved for the Roblox touch thumbstick (bottom-left). Matches the
---- dynamic thumbstick's activation region with a margin; nothing goes here.
+--- Area reserved for the Roblox touch thumbstick. Matches the activation
+--- frame of PlayerModule's DynamicThumbstick in landscape: left 40% of the
+--- screen, bottom two-thirds (Position (0, 1/3), Size (0.4, 2/3)). No
+--- input-sinking HUD element may sit here (§5.8).
 function Layout.thumbstickZone(width: number, height: number): Rect
-	return { x = 0, y = height * 0.45, w = width * 0.4, h = height * 0.55 }
+	return { x = 0, y = height / 3, w = width * 0.4, h = height * 2 / 3 }
 end
 
 --- Top strip where nothing critical may sit.
@@ -74,6 +76,51 @@ function Layout.safeRect(
 	local w = math.max(0, width - insets.left - insets.right - g * 2)
 	local h = math.max(0, height - insets.top - insets.bottom - g)
 	return { x = x, y = y, w = w, h = h }
+end
+
+export type AnchorName = "TopLeft" | "TopCenter" | "TopRight" | "RightRail" | "BottomRight" | "BottomCenter" | "Center"
+
+-- Reference sizes (px at scale 1) for the HUD anchors (§5.4). Kept here, not
+-- in SafeArea, so tests can check the real geometry against the zones.
+Layout.ANCHOR = {
+	topMargin = 8,
+	pillStack = 2 * (52 + 4) + 8, -- two CurrencyPills + gap
+	bannerLane = 52 + 4 + 8,
+	iconButton = 52,
+	iconButtonRow = 52 + 4,
+	chipRow = 44 + 4,
+	sideGap = 8, -- clearance between the prompt chip lane and the zones
+}
+
+--- HUD anchor rects in screen px. `content` is the safe content rect in
+--- screen coordinates (Layout.safeRect at runtime), `s` the UI scale.
+--- TopLeft (non-Active currency pills, see CurrencyPill) and Center (modals,
+--- full screen by design) are allowed to reach into the thumbstick zone;
+--- every other anchor must stay clear of it.
+function Layout.anchors(width: number, height: number, content: Rect, s: number): { [AnchorName]: Rect }
+	local A = Layout.ANCHOR
+	local c = content
+	local stick = Layout.thumbstickZone(width, height)
+	local arc = Layout.thumbArcZone(width, height)
+	local railH = c.h * 0.5
+	local bottomRightW = c.w * 0.38
+	local chipH = A.chipRow * s
+	local chipLeft = math.max(c.x, stick.x + stick.w + A.sideGap * s)
+	local chipRight = math.min(c.x + c.w, arc.x - A.sideGap * s)
+	return {
+		TopLeft = { x = c.x, y = c.y + A.topMargin * s, w = c.w * 0.3, h = A.pillStack * s },
+		TopCenter = { x = c.x + c.w * 0.3, y = c.y, w = c.w * 0.4, h = A.bannerLane * s },
+		TopRight = { x = c.x + c.w * 0.7, y = c.y + A.topMargin * s, w = c.w * 0.3, h = A.iconButtonRow * s },
+		RightRail = {
+			x = c.x + c.w - A.iconButton * s,
+			y = c.y + c.h * 0.42 - railH / 2,
+			w = A.iconButton * s,
+			h = railH,
+		},
+		BottomRight = { x = c.x + c.w - bottomRightW, y = c.y + c.h * 0.5, w = bottomRightW, h = c.h * 0.5 },
+		BottomCenter = { x = chipLeft, y = c.y + c.h - chipH, w = math.max(0, chipRight - chipLeft), h = chipH },
+		Center = { x = c.x, y = c.y, w = c.w, h = c.h },
+	}
 end
 
 local TOUCH = { Touch = true }

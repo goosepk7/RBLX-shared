@@ -6,7 +6,7 @@
 
 		local drawer = Kit.Drawer.new({ Title = "Parts", Mode = manager:getInputMode() })
 		-- parent rows into drawer.body
-		drawer.open(screenGui)
+		drawer.open(area.modalLayer, area.backdropLayer)
 ]]
 
 local Create = require("../Create")
@@ -30,7 +30,7 @@ export type Props = {
 export type Handle = {
 	root: Frame,
 	body: ScrollingFrame,
-	open: (parent: Instance) -> (),
+	open: (parent: Instance, backdropParent: Instance?) -> (), -- see Modal.open
 	close: () -> (),
 }
 
@@ -102,6 +102,9 @@ function Drawer.new(props: Props): Handle
 
 	local style: Variant = "Sheet"
 	local opened = false
+	root.Destroying:Connect(function()
+		scrim:Destroy()
+	end)
 
 	local function shownPos(): UDim2
 		return if style == "Sheet" then UDim2.fromScale(0, 1) else UDim2.fromScale(1, 0)
@@ -140,6 +143,7 @@ function Drawer.new(props: Props): Handle
 		Motion.exit(sheet, { Position = hiddenPos() }).Completed:Once(function()
 			if not opened then
 				root.Visible = false
+				scrim.Visible = false
 				if props.OnClosed then
 					props.OnClosed()
 				end
@@ -147,7 +151,9 @@ function Drawer.new(props: Props): Handle
 		end)
 	end
 
-	local function open(parent: Instance)
+	local function open(parent: Instance, backdropParent: Instance?)
+		scrim.Parent = backdropParent or root
+		scrim.Visible = true
 		root.Parent = parent
 		layout(parent)
 		opened = true

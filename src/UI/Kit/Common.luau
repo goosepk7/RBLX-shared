@@ -102,10 +102,13 @@ function Common.spinner(colorName: Theme.ColorName, dotSize: number): Frame
 	holder.Destroying:Connect(function()
 		alive = false
 	end)
+	local running = false
 	holder:GetPropertyChangedSignal("Visible"):Connect(function()
-		if not holder.Visible then
+		-- One loop per spinner, even if Visible toggles off/on within a cycle.
+		if not holder.Visible or running then
 			return
 		end
+		running = true
 		task.spawn(function()
 			local step = 0
 			while alive and holder.Visible do
@@ -118,6 +121,7 @@ function Common.spinner(colorName: Theme.ColorName, dotSize: number): Frame
 				step += 1
 				task.wait(Tokens.motion.fastDuration + 0.04)
 			end
+			running = false
 		end)
 	end)
 	return holder
@@ -220,7 +224,8 @@ function Common.bindPress(ef: EdgeFace, edgeSize: number, state: PressState): { 
 	local conns: { RBXScriptConnection } = {}
 
 	local function rest()
-		local y = if hovered then -m.hoverLift else 0
+		-- Disabled controls rest flat (no edge); see Common.setFlat.
+		local y = if ef.face:GetAttribute("Flat") then edgeSize elseif hovered then -m.hoverLift else 0
 		Motion.tween(face, m.releaseDuration, "Spring", { Position = UDim2.fromOffset(0, y) })
 		Motion.tween(ef.scale, m.releaseDuration, "Spring", { Scale = 1 })
 	end
@@ -282,7 +287,17 @@ end
 --- disabled controls have no edge (§5.3), so the face sits flush at the bottom.
 function Common.setFlat(ef: EdgeFace, edgeSize: number, flat: boolean)
 	ef.edge.Visible = not flat
-	ef.face.Position = UDim2.fromOffset(0, if flat then edgeSize else 0)
+	ef.face:SetAttribute("Flat", flat)
+	local target = UDim2.fromOffset(0, if flat then edgeSize else 0)
+	if not ef.face:IsDescendantOf(game) then
+		-- Not on screen yet (initial build): no animation needed.
+		ef.face.Position = target
+		return
+	end
+	-- Tween (rather than assign) so any in-flight press/release tween is
+	-- replaced instead of finishing on top of the flat position.
+	Motion.tween(ef.face, Tokens.motion.fastDuration, "Enter", { Position = target })
+	Motion.tween(ef.scale, Tokens.motion.fastDuration, "Enter", { Scale = 1 })
 end
 
 return Common

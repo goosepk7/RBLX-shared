@@ -102,7 +102,7 @@ function ScreenManager.new(area: SafeArea.SafeArea): ScreenManager
 	self._cinematic = false
 	self._mode = initialMode(uis)
 	self._layer = Create.group({ Name = "Screens", ZIndex = 40, Parent = area.content })
-	self._modalLayer = Create.group({ Name = "Modals", ZIndex = 50, Parent = area.content })
+	self._modalLayer = area.modalLayer
 
 	table.insert(
 		self._conns,
@@ -166,7 +166,12 @@ end
 local function transitionOut(holder: Frame, destroy: boolean)
 	local scale = holder:FindFirstChildOfClass("UIScale") :: UIScale
 	Motion.exit(scale, { Scale = 0.94 })
-	Motion.exit(holder, { Position = UDim2.fromScale(0, 0.04) }).Completed:Once(function()
+	-- A newer tween on the same holder (e.g. a pop right after a push) cancels
+	-- this one; Completed still fires then, so act only on a real completion.
+	Motion.exit(holder, { Position = UDim2.fromScale(0, 0.04) }).Completed:Once(function(state: Enum.PlaybackState)
+		if state ~= Enum.PlaybackState.Completed then
+			return
+		end
 		if destroy then
 			holder:Destroy()
 		else
@@ -293,7 +298,7 @@ function ScreenManager.showModal(
 		end,
 	})
 	table.insert(self._modals, handle)
-	handle.open(self._modalLayer)
+	handle.open(self._modalLayer, self._area.backdropLayer)
 	return handle
 end
 
@@ -332,7 +337,7 @@ function ScreenManager.setCinematic(self: Internal, on: boolean)
 		end
 	end
 	self._layer.Visible = not on
-	self._modalLayer.Visible = not on
+	self._area.setModalsVisible(not on)
 	self._area.toasts.root.Visible = not on
 	if not on then
 		local top = self._stack[#self._stack]
@@ -347,7 +352,10 @@ function ScreenManager.destroy(self: Internal)
 		c:Disconnect()
 	end
 	self._layer:Destroy()
-	self._modalLayer:Destroy()
+	for _, modal in self._modals do
+		modal.root:Destroy()
+	end
+	table.clear(self._modals)
 end
 
 return ScreenManager
