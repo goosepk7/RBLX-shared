@@ -95,9 +95,14 @@ local function newGame(name: string?, existing: World.World?): Game
 	local policy = {
 		restricted = {} :: { [number]: boolean },
 		delay = 0,
+		failures = 0,
 		GetPolicyInfoForPlayerAsync = function(self: any, player: any)
 			if self.delay > 0 then
 				world.clock.task.wait(self.delay)
+			end
+			if self.failures > 0 then
+				self.failures -= 1
+				error("PolicyService unavailable")
 			end
 			return { ArePaidRandomItemsRestricted = self.restricted[player.UserId] == true }
 		end,
@@ -388,6 +393,19 @@ T.describe("Shop products", function()
 		expect(g.shop:randomItemsAllowed(player)).toBe(true)
 	end)
 
+	T.it("retries a failed policy lookup once", function()
+		local g = newGame()
+		g.policy.failures = 1
+		local logs, restore = Log.capture()
+		local player = g.server:join(1)
+		g.world.clock:flush()
+		expect(g.shop:randomItemsAllowed(player)).toBe(false)
+		g.world.clock:advance(5)
+		restore()
+		expect(g.shop:randomItemsAllowed(player)).toBe(true)
+		expect(#logs).toBe(1)
+	end)
+
 	T.it("checks canPurchase before prompting, and runs custom grants", function()
 		local g = newGame()
 		local player = g.server:join(1)
@@ -426,7 +444,11 @@ T.describe("Shop products", function()
 
 	T.it("rejects configs with two grant kinds or unknown crate items", function()
 		local clock = T.Clock.new()
-		local economy = Economy.new({ currencies = { { id = "Wins", displayName = "Wins" } }, task = clock.task })
+		local economy = Economy.new({
+			currencies = { { id = "Wins", displayName = "Wins" } },
+			reasons = { shop = "spend" },
+			task = clock.task,
+		})
 		expect(function()
 			Shop.new({
 				economy = economy,

@@ -33,7 +33,8 @@ export type Target = {
 
 export type Applied = {
 	ok: boolean,
-	-- Why nothing was applied ("notLoaded", "noEconomy", "noShop") when ok is false.
+	-- Why nothing was applied ("notLoaded", "noEconomy", "noShop", "unknownReason") when ok is
+	-- false.
 	failure: string?,
 	-- Currency id -> amount that reached the balance (after multipliers for earn reasons).
 	currencies: { [string]: number },
@@ -53,6 +54,35 @@ export type Entry = {
 }
 
 local Rewards = {}
+
+-- Reason kinds that pay currency through economy:earn.
+local PAYING: { [string]: boolean } = { earn = true, grant = true }
+
+--[[
+	Errors at startup unless `reason` is declared in `economy` with one of `kinds` (default
+	"earn" or "grant"). An undeclared reason would make every earn pay 0, and the claim, code or
+	event would still be recorded as paid. `owner` names the caller in the message
+	("Daily.new"). Does nothing without an economy.
+]]
+function Rewards.requireReason(economy: any?, reason: string, owner: string, kinds: { string }?)
+	if economy == nil then
+		return
+	end
+	local allowed: { string } = kinds or { "earn", "grant" }
+	local kind = (economy :: any):reasonKind(reason)
+	if kind == nil or table.find(allowed, kind) == nil then
+		error(
+			string.format(
+				"%s: Economy reason %q must be declared as %s (it is %s)",
+				owner,
+				reason,
+				table.concat(allowed, " or "),
+				if kind then '"' .. kind .. '"' else "not declared"
+			),
+			2
+		)
+	end
+end
 
 local function isPositiveNumber(value: any): boolean
 	return type(value) == "number" and value == value and value > 0 and value < math.huge
@@ -173,6 +203,12 @@ function Rewards.apply(target: Target, who: any, reward: Reward, reason: string)
 	if #items > 0 and shop == nil then
 		applied.ok = false
 		applied.failure = "noShop"
+		return applied
+	end
+	if needsEconomy and not PAYING[eco:reasonKind(reason) or ""] then
+		-- earn would pay 0; refuse before anything changes so the caller doesn't record it as paid.
+		applied.ok = false
+		applied.failure = "unknownReason"
 		return applied
 	end
 

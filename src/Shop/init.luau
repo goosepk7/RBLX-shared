@@ -149,6 +149,8 @@ export type Options = {
 	-- Ownership check attempts and the wait between them. Defaults 3 and 2 s.
 	ownershipRetries: number?,
 	ownershipRetryDelay: number?,
+	-- Seconds before the one retry of a failed PolicyService lookup. Default 5.
+	policyRetryDelay: number?,
 }
 
 export type State = {
@@ -340,9 +342,12 @@ function Shop.new(options: Options): Shop
 	local now: () -> number = options.now or os.time
 	local spendReason = options.spendReason or "shop"
 	local purchaseReason = options.purchaseReason or "purchase"
+	Rewards.requireReason(economy, spendReason, "Shop.new", { "spend" })
+	Rewards.requireReason(economy, purchaseReason, "Shop.new")
 	local autoEquip = options.autoEquip ~= false
 	local retries = options.ownershipRetries or 3
 	local retryDelay = options.ownershipRetryDelay or 2
+	local policyRetryDelay = options.policyRetryDelay or 5
 
 	local itemById: { [string]: ItemDef } = {}
 	local itemList: { ItemDef } = {}
@@ -593,14 +598,26 @@ function Shop.new(options: Options): Shop
 			end
 			if policy then
 				taskLib().spawn(function()
-					local ok, info = pcall(function()
-						return policy:GetPolicyInfoForPlayerAsync(player)
-					end)
-					if ok and type(info) == "table" then
-						randomAllowed[userId] = info.ArePaidRandomItemsRestricted ~= true
-						changed(player)
-					elseif not ok then
-						Log.warn("Shop", "policy lookup failed for " .. tostring(userId) .. ": " .. tostring(info))
+					-- One retry: a failed lookup would otherwise hide crates for the whole session.
+					for attempt = 1, 2 do
+						local ok, info = pcall(function()
+							return policy:GetPolicyInfoForPlayerAsync(player)
+						end)
+						if slots:get(userId) == nil then
+							return
+						end
+						if ok and type(info) == "table" then
+							randomAllowed[userId] = info.ArePaidRandomItemsRestricted ~= true
+							changed(player)
+							return
+						end
+						Log.warn(
+							"Shop",
+							string.format("policy lookup %d failed for %d: %s", attempt, userId, tostring(info))
+						)
+						if attempt == 1 then
+							taskLib().wait(policyRetryDelay)
+						end
 					end
 				end)
 			end

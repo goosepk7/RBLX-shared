@@ -255,11 +255,11 @@ local function sortedDefs(list: { any }?): { any }
 		end
 		return a.index < b.index
 	end)
-	local defs: { any } = {}
+	local sorted: { any } = {}
 	for _, entry in out do
-		table.insert(defs, entry.def)
+		table.insert(sorted, entry.def)
 	end
-	return defs
+	return sorted
 end
 
 local function robux(loc: Loc.Loc, price: number): string

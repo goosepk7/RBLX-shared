@@ -131,6 +131,7 @@ function Daily.new(options: Options): Daily
 		assert(#problems == 0, "Daily.new: days[" .. i .. "]: " .. table.concat(problems, "; "))
 	end
 	local reason = options.reason or "daily"
+	Rewards.requireReason(economy, reason, "Daily.new")
 	local offset = (options.resetHourUtc or 0) * 3600
 	local grace = options.graceDays or 0
 	local now: () -> number = options.now or os.time

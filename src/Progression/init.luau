@@ -42,6 +42,7 @@
 
 local Log = require("./Util/Log")
 local Remotes = require("./Remotes")
+local Rewards = require("./Rewards")
 local Rng = require("./Sim/Rng")
 local Roblox = require("./Util/Roblox")
 local Signal = require("./Signal")
@@ -493,7 +494,9 @@ function Progression.new(options: Options): Progression
 			)
 		end
 	end
+	local paysRewards = false
 	for _, stage in stageList do
+		paysRewards = paysRewards or stage.reward ~= nil
 		assert(
 			stage.gate == nil or gateById[stage.gate],
 			"Progression.new: stage " .. stage.id .. " uses unknown gate " .. tostring(stage.gate)
@@ -504,6 +507,9 @@ function Progression.new(options: Options): Progression
 				"Progression.new: stage " .. stage.id .. " pays unknown currency " .. stage.reward.currency
 			)
 		end
+	end
+	if paysRewards then
+		Rewards.requireReason(economy, rewardReason, "Progression.new")
 	end
 
 	local slots = Slots.new(field, Progression.newState, Progression.repair)

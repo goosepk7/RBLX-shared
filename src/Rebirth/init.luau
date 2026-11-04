@@ -229,6 +229,11 @@ function Rebirth.new(options: Options): Rebirth
 	local bonuses: { [string]: Curve } = options.bonuses or {}
 	local milestones: { [number]: Types.Reward } = options.milestones or {}
 	local rewardReason = options.rewardReason or "rebirthReward"
+	-- The reset sets balances with the built-in "rebirth" reason.
+	Rewards.requireReason(economy, "rebirth", "Rebirth.new", { "adjust" })
+	if next(milestones) ~= nil then
+		Rewards.requireReason(economy, rewardReason, "Rebirth.new")
+	end
 
 	for _, currency in resetCurrencies do
 		assert(economy:currency(currency), "Rebirth.new: resets unknown currency " .. currency)

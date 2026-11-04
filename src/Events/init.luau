@@ -180,6 +180,12 @@ function Events.new(options: Options): Events
 	local rotation = options.rotation or "sequence"
 	local seed = options.seed or "events"
 	local rewardReason = options.rewardReason or "event"
+	for _, def in defs do
+		if def.rewards or def.reward then
+			Rewards.requireReason(options.economy, rewardReason, "Events.new")
+			break
+		end
+	end
 	local now: () -> number = options.now or os.time
 	local byId: { [string]: EventDef } = {}
 	for _, def in defs do
