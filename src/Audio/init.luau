@@ -139,19 +139,13 @@ function Audio.new(options: Options?): Audio
 	local fadeStep = opts.fadeStep or 1 / 30
 	local parent: any = opts.parent
 
-	local defs: { [string]: SoundDef } = {}
-	for name, def in Audio.DEFAULT_SOUNDS :: { [string]: SoundDef } do
-		defs[name] = def
-	end
+	local defs: { [string]: SoundDef } = table.clone(Audio.DEFAULT_SOUNDS :: { [string]: SoundDef })
 	local extra: { [string]: SoundDef } = opts.sounds or {}
 	for name, def in extra do
 		defs[name] = def
 	end
 
-	local volumes: { [string]: number } = {}
-	for name, value in DEFAULT_VOLUMES do
-		volumes[name] = value
-	end
+	local volumes: { [string]: number } = table.clone(DEFAULT_VOLUMES :: any)
 	local initial: { [string]: number } = (opts.volumes or {}) :: any
 	for name, value in initial do
 		volumes[name] = clamp01(value)

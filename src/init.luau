@@ -28,6 +28,7 @@ local RBLXShared = {
 	Types = require("@self/Types"),
 	Util = require("@self/Util"),
 	UI = require("@self/UI"),
+	VFX = require("@self/VFX"),
 	World = require("@self/World"),
 }
 

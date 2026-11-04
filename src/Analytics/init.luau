@@ -215,10 +215,7 @@ function Analytics.new(options: Options?): Analytics
 	local flushInterval = opts.flushInterval or 5
 	local budgetBase = opts.budgetBase or 120
 	local budgetPerPlayer = opts.budgetPerPlayer or 20
-	local transactionTypes: { [string]: string } = {}
-	for key, value in Analytics.DEFAULT_TRANSACTION_TYPES :: { [string]: string } do
-		transactionTypes[key] = value
-	end
+	local transactionTypes: { [string]: string } = table.clone(Analytics.DEFAULT_TRANSACTION_TYPES :: any)
 	for key, value in opts.transactionTypes or {} :: { [string]: string } do
 		transactionTypes[key] = value
 	end

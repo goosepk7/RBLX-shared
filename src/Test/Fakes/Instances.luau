@@ -89,7 +89,7 @@ function Instances.new(): FakeInstances
 			SetAttribute = function(_self: FakeInstance, key: string, value: any)
 				attributes[key] = value
 			end,
-			Clone = function(self: FakeInstance)
+			Clone = function(_self: FakeInstance)
 				local copy = make(className)
 				for key, value in props do
 					if key ~= "Parent" then
