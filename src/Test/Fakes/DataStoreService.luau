@@ -454,7 +454,7 @@ function DataStoreService.new(): FakeDataStoreService
 				local hook = beforeCommit
 				if hook and not inHook then
 					inHook = true
-					local ok, err = pcall(hook, {
+					local ok, err = pcall(hook :: any, {
 						method = "UpdateAsync",
 						store = name,
 						scope = scope or "global",
