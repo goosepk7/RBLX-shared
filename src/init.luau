@@ -31,6 +31,7 @@ local RBLXShared = {
 	Rebirth = require("@self/Rebirth"),
 	Remotes = require("@self/Remotes"),
 	Rewards = require("@self/Rewards"),
+	Screens = require("@self/Screens"),
 	Settings = require("@self/Settings"),
 	Shop = require("@self/Shop"),
 	Signal = require("@self/Signal"),
