@@ -27,12 +27,12 @@ jobs:
           cache: true
 
       - name: StyLua (format check)
-        run: stylua --check src tests sims tools
+        run: stylua --check src tests sims tools studio
 
       - name: Selene (lint)
         run: |
           selene generate-roblox-std
-          selene src tests sims tools
+          selene src tests sims tools studio
 
       - name: Luau type check (luau-lsp analyze)
         run: |
@@ -46,7 +46,7 @@ jobs:
         run: lune run tests
 
       - name: Project lint (tools/lint)
-        run: lune run tools/lint
+        run: lune run tools/lint src studio
 
       - name: Asset manifest (verify_assets)
         run: lune run tools/verify_assets
@@ -67,6 +67,7 @@ jobs:
           mkdir -p build
           rojo build dev.project.json --output build/RBLXShared-dev.rbxl
           rojo build default.project.json --output build/RBLXShared.rbxm
+          rojo build studio/netsmoke.project.json --output build/NetSmoke.rbxl
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

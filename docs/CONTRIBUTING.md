@@ -10,8 +10,8 @@
 |---|---|
 | Run all tests | `lune run tests` |
 | Run matching tests | `lune run tests "Clock"` |
-| Format | `stylua src tests sims tools` |
-| Lint | `selene src tests sims tools` |
+| Format | `stylua src tests sims tools studio` |
+| Lint | `selene src tests sims tools studio` |
 | Type check | `tools/ci/typecheck.sh` (after `lune setup`) |
 | Build a place | `rojo build dev.project.json -o build/dev.rbxl` |
 
@@ -26,6 +26,12 @@ CI runs all of these on every PR; red CI blocks merge.
   default, e.g. `deps.dataStoreService or game:GetService("DataStoreService")` inside `new`.
 - Nothing game-specific. If a game needs it, it belongs here in a generic form.
 - Add each new top-level module to `src/init.luau` (one line).
+
+## Code in `studio/`
+- Places for checks that only Studio can run (today the Net smoke, see docs/TOOLING.md). They
+  are game-style scripts: they require the package by instance path
+  (`ReplicatedStorage.Packages.RBLXShared`) and may touch services at the top level.
+- Pure helpers in there can be unit-tested from `tests/` through the `@studio` alias.
 
 ## Tests
 - Files: `tests/<Module>/*.spec.luau`. Register cases when required:
