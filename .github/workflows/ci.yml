@@ -45,6 +45,17 @@ jobs:
           CI: "true"
         run: lune run tests
 
+      - name: Sims (lune)
+        run: lune run sims
+
+      - name: Upload sim outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-outputs
+          path: sims/out/
+          if-no-files-found: ignore
+
       - name: Rojo build
         run: |
           mkdir -p build
