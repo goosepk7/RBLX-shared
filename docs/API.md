@@ -18,11 +18,11 @@ player is flagged for the Admin panel. A flag never takes anything from a player
 |---|---|
 | `AntiExploit.default()` | Process-wide registry, bound to `Players` in Roblox. Net's default server context reports here. |
 | `AntiExploit.configureDefault(options)` | Set the default's options once at server start, before anything reports a strike. |
-| `AntiExploit.newRegistry({ threshold?, onFlag?, kickMessage?, historySize?, recentSize?, now? })` | `threshold` 3; `onFlag` `"none"` (default) or `"kick"`; flag log keeps 100, recent strikes per player 10. |
+| `AntiExploit.newRegistry({ threshold?, onFlag?, kickMessage?, historySize?, recentSize?, strikeLimit?, now? })` | `threshold` 3; `onFlag` `"none"` (default) or `"kick"`; flag log keeps 100, recent strikes per player 10. `strikeLimit` (default 5 back to back, then one per 5 s per player) caps what one player can trigger: extra strikes still count toward the flag but aren't recorded or signalled. |
 | `registry:strike(player, category, detail?)` | Returns the player's total. Net uses `net.malformed`, `net.wrongDirection`, `net.flood`; games use their own, e.g. `stilts.teleport`. |
-| `registry:getRecord(player)` | `{ userId, name, strikes, flagged, flaggedAt?, byCategory, recent }`, or nil. |
+| `registry:getRecord(player)` | `{ userId, name, strikes, suppressed, flagged, flaggedAt?, byCategory, recent }`, or nil. |
 | `registry:isFlagged(player)`, `registry:getFlagged()` | The flag log (oldest first) outlives the player's session; the Admin panel lists it. |
-| `registry.Flagged`, `registry.Struck` | Signals: `(player, FlagRecord)` once per session at the threshold; `(player, StrikeRecord)` on every strike. |
+| `registry.Flagged`, `registry.Struck` | Signals: `(player, FlagRecord)` once per session at the threshold; `(player, StrikeRecord)` on every recorded strike. |
 | `registry:forget(player)`, `:bindPlayers(Players)`, `:clear()` | Live-record cleanup (`default()` already forgets players as they leave). |
 
 ```luau
@@ -77,12 +77,13 @@ returns it. On the server it creates `ReplicatedStorage.RBLXSharedNet.<Namespace
 bind every namespace during server startup. `guard(player) -> boolean` is a precondition such as
 "profile loaded"; failing it drops the message without a strike.
 
-Every client-to-server message runs: kill switch → argument count → rate limit → schema → guard →
+Every client-to-server message runs: kill switch → rate limit → argument count → schema → guard →
 handlers. Malformed traffic (extra arguments, wrong type, range or enum) and messages sent the
 wrong way are dropped, counted, and reported as strikes. Rate-limited messages are dropped and
 counted; only a sustained flood (more than 10 × burst drops in 10 s) adds a `net.flood` strike.
-The default limit is 10/s with a burst of 20 per player per remote, and the client holds itself
-to the same limit. Handler errors are reported with a traceback, never swallowed. Invoke errors:
+Because the limit comes first, a flood of bad messages costs at most `burst` strikes plus one
+flood strike per window; wrong-way traffic gets the default limit too. The default limit is
+10/s with a burst of 20 per player per remote, and the client holds itself to the same limit. Handler errors are reported with a traceback, never swallowed. Invoke errors:
 `"disabled"`, `"invalid"`, `"rate_limited"`, `"unauthorized"`, `"unavailable"`, `"error"`, `"timeout"`.
 
 Schemas (`local S = Net.Schema`). Each is `{ check(value) -> (ok, reason?) }`; checks never error

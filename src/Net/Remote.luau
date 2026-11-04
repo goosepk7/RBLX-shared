@@ -8,9 +8,11 @@
 	methods that make sense for it and calling the other side's methods errors.
 
 	Server pipeline for every client-to-server message, in order:
-	  kill switch -> argument count -> rate limit -> schema -> guard -> handlers
-	Malformed payloads (wrong arity, type, range, enum) and wrong-direction traffic are dropped,
-	counted, and reported as strikes. Rate-limited and guarded messages are dropped and counted.
+	  kill switch -> rate limit -> argument count -> schema -> guard -> handlers
+	The rate limit comes before every check that can strike, so a flood costs at most `burst`
+	strikes plus one flood strike per window. Malformed payloads (wrong arity, type, range, enum)
+	and wrong-direction traffic (also rate limited) are dropped, counted, and reported as
+	strikes. Rate-limited and guarded messages are dropped and counted.
 ]]
 
 local Context = require("./Context")
@@ -37,6 +39,9 @@ export type ClientEventOptions = {
 	-- Server-side precondition, e.g. "profile loaded". Failing it drops the message without a
 	-- strike. Must not yield.
 	guard: ((player: Player) -> boolean)?,
+	-- Accept a payload schema that contains Schema.any(). Off by default: §3.3 wants every
+	-- inbound payload validated.
+	allowAny: boolean?,
 }
 
 export type ServerEventOptions = {
@@ -46,6 +51,8 @@ export type ServerEventOptions = {
 export type ClientFunctionOptions = {
 	rateLimit: (RateLimiter.RateLimit | false)?,
 	guard: ((player: Player) -> boolean)?,
+	-- Accept a request schema that contains Schema.any(). Off by default.
+	allowAny: boolean?,
 	-- Client-side timeout in seconds. Default: the context's invokeTimeout (15).
 	timeout: number?,
 }
@@ -180,6 +187,19 @@ local function reject(def: Definition, ctx: Context, player: Player, reason: str
 	ctx:_strike(player, "net.malformed", def.name .. ": " .. reason)
 end
 
+-- Spends one token from the sender's bucket. Over the limit: counted, and reported to the
+-- context's flood detector, which strikes at most once per window.
+local function admitRate(def: Definition, ctx: Context, player: Player): boolean
+	local limiter = def.limiter
+	if limiter == nil or limiter:allow(player) then
+		return true
+	end
+	local metrics = def.metrics :: Context.RemoteMetrics
+	metrics.dropped.rateLimited += 1
+	ctx:_noteRateLimited(player, def.name, limiter.limit.burst)
+	return false
+end
+
 -- Shared server checks. Returns the payload when the message should be handled, otherwise
 -- nil and the error code a function remote answers with.
 local function admit(def: Definition, ctx: Context, player: Player, ...: any): (boolean, any, InvokeError?)
@@ -189,16 +209,15 @@ local function admit(def: Definition, ctx: Context, player: Player, ...: any): (
 		metrics.dropped.disabled += 1
 		return false, nil, "disabled"
 	end
+	-- The limiter runs before anything that can strike, so one client can't turn a flood into
+	-- a strike (and a Struck signal) per message; sustained floods earn one flood strike.
+	if not admitRate(def, ctx, player) then
+		return false, nil, "rate_limited"
+	end
 	local argCount = select("#", ...)
 	if argCount > 1 then
 		reject(def, ctx, player, "expected one payload argument, got " .. tostring(argCount))
 		return false, nil, "invalid"
-	end
-	local limiter = def.limiter
-	if limiter and not limiter:allow(player) then
-		metrics.dropped.rateLimited += 1
-		ctx:_noteRateLimited(player, def.name, limiter.limit.burst)
-		return false, nil, "rate_limited"
 	end
 	local payload = (...)
 	local ok, reason = def.schema.check(payload)
@@ -299,6 +318,9 @@ end
 local function onWrongDirection(def: Definition, ctx: Context, player: Player)
 	local metrics = def.metrics :: Context.RemoteMetrics
 	metrics.received += 1
+	if not admitRate(def, ctx, player) then
+		return
+	end
 	metrics.dropped.wrongDirection += 1
 	ctx:_strike(player, "net.wrongDirection", def.name .. ": client fired a server-to-client remote")
 end
@@ -390,9 +412,23 @@ local function invokeWithTimeout(
 	return coroutine.yield()
 end
 
+-- Client-to-server payloads must be described precisely (§3.3) unless the remote opts out.
+local function refuseAny(constructor: string, schema: Schema<any>, allowAny: boolean?)
+	if schema.containsAny and allowAny ~= true then
+		error(
+			"Net."
+				.. constructor
+				.. ": the payload schema contains Schema.any(), so clients could send anything. Describe it "
+				.. "precisely, or pass allowAny = true if this remote really accepts any value",
+			3
+		)
+	end
+end
+
 function Remote.clientEvent<T>(schema: Schema<T>, options: ClientEventOptions?): ClientEvent<T>
 	local opts: ClientEventOptions = options or {}
 	local def = newDefinition("ClientEvent", schema)
+	refuseAny("clientEvent", schema, opts.allowAny)
 	def.rateLimit = opts.rateLimit
 	def.unreliable = opts.unreliable == true
 	def.guard = opts.guard
@@ -531,6 +567,7 @@ function Remote.clientFunction<Req, Res>(
 ): ClientFunction<Req, Res>
 	local opts: ClientFunctionOptions = options or {}
 	local def = newDefinition("ClientFunction", request)
+	refuseAny("clientFunction", request, opts.allowAny)
 	assert(Schema.isSchema(response), "Net.clientFunction: expected a Net.Schema for the response")
 	def.responseSchema = response
 	def.rateLimit = opts.rateLimit
@@ -604,6 +641,9 @@ function Remote.bind(remote: any, ctx: Context, namespace: string, key: string, 
 			limit = def.rateLimit :: RateLimiter.RateLimit
 		end
 	end
+	-- Clients never legitimately fire a server-to-client remote, but a modified one can, so the
+	-- server still limits that traffic (default limit) before striking it.
+	local serverLimit: RateLimiter.RateLimit? = if inbound then limit else ctx.defaultRateLimit
 
 	if ctx.side == "server" then
 		local transport = ctx.transport :: Transport.ServerTransport
@@ -614,8 +654,8 @@ function Remote.bind(remote: any, ctx: Context, namespace: string, key: string, 
 		local endpoint = transport:createEndpoint(namespace, key, kind)
 		def.endpoint = endpoint
 		def.metrics = ctx:_newMetrics(def.name, def.kind)
-		if limit then
-			def.limiter = RateLimiter.new(limit, ctx.clock)
+		if serverLimit then
+			def.limiter = RateLimiter.new(serverLimit, ctx.clock)
 		end
 		if def.kind == "ClientEvent" then
 			endpoint:onEvent(function(player: Player, ...: any)

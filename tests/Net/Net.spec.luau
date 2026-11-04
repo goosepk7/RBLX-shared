@@ -136,6 +136,29 @@ T.describe("Net client events", function()
 		expect(metricsOf(world, "Lunge").accepted).toBe(0)
 	end)
 
+	T.it("a flood of malformed messages costs at most burst strikes plus one flood strike", function()
+		local world = setup()
+		world.serverRemotes.Lunge:connect(function() end)
+		local struck = 0
+		world.registry.Struck:Connect(function()
+			struck += 1
+		end)
+		for _ = 1, 1000 do
+			world.loop:injectFromClient(world.player, "Test.Lunge", 0.5, "extra")
+		end
+		local metrics = metricsOf(world, "Lunge")
+		expect(metrics.received).toBe(1000)
+		-- Lunge allows a burst of 3: only those reach the argument check.
+		expect(metrics.dropped.malformed).toBe(3)
+		expect(metrics.dropped.rateLimited).toBe(997)
+		local record = world.registry:getRecord(world.player)
+		assert(record, "expected a strike record")
+		expect(record.byCategory["net.malformed"]).toBe(3)
+		expect(record.byCategory["net.flood"]).toBe(1)
+		expect(record.strikes).toBe(4)
+		expect(struck).toBe(4)
+	end)
+
 	T.it("rejects NaN from a modified client", function()
 		local world = setup()
 		world.serverRemotes.Lunge:connect(function() end)
@@ -368,6 +391,29 @@ T.describe("Net server events", function()
 		expect(record.byCategory["net.wrongDirection"]).toBe(1)
 	end)
 
+	T.it("rate-limits a client that floods a server-to-client remote", function()
+		local world = setup()
+		local struck = 0
+		world.registry.Struck:Connect(function()
+			struck += 1
+		end)
+		for _ = 1, 1000 do
+			world.loop:injectFromClient(world.player, "Test.Banner", "spoof")
+		end
+		local metrics = metricsOf(world, "Banner")
+		expect(metrics.received).toBe(1000)
+		-- The context default (burst 20) applies to wrong-way traffic.
+		expect(metrics.dropped.wrongDirection).toBe(20)
+		expect(metrics.dropped.rateLimited).toBe(980)
+		local record = world.registry:getRecord(world.player)
+		assert(record, "expected a strike record")
+		expect(record.byCategory["net.wrongDirection"]).toBe(20)
+		expect(record.byCategory["net.flood"]).toBe(1)
+		-- The registry's own strike limit keeps signals bounded too.
+		expect(struck).toBe(5)
+		expect(record.suppressed).toBe(16)
+	end)
+
 	T.it("client handlers can disconnect", function()
 		local world = setup()
 		local count = 0
@@ -489,6 +535,57 @@ T.describe("Net binding rules", function()
 		expect(function()
 			loose:fire(nil)
 		end).toThrow("unbound remote")
+	end)
+
+	T.it("inbound remotes refuse Schema.any() unless they opt in", function()
+		expect(function()
+			Net.clientEvent(S.struct({ note = S.any() }))
+		end).toThrow("contains Schema.any()")
+		expect(function()
+			Net.clientFunction(S.optional(S.any()), S.boolean())
+		end).toThrow("contains Schema.any()")
+		expect(Net.isRemote(Net.clientEvent(S.any(), { allowAny = true }))).toBe(true)
+		expect(Net.isRemote(Net.clientFunction(S.any(), S.boolean(), { allowAny = true }))).toBe(true)
+		-- Outgoing payloads and responses may be open: the server is trusted.
+		expect(Net.isRemote(Net.serverEvent(S.any()))).toBe(true)
+		expect(Net.isRemote(Net.clientFunction(S.none(), S.any()))).toBe(true)
+	end)
+
+	T.it("the loopback wire follows Roblox's remote argument rules", function()
+		local loop = Net.Loopback.new()
+		local clock = T.Clock.new()
+		local server = Net.newContext({ side = "server", transport = loop.server, task = clock.task })
+		local remotes = Net.namespace("Wire", {
+			Echo = Net.clientEvent(S.any(), { allowAny = true, rateLimit = false }),
+		}, { context = server })
+		local got: any = nil
+		remotes.Echo:connect(function(_player: Player, payload: any)
+			got = payload
+		end)
+		local player = T.Fakes.Players.newPlayer({ UserId = 3 }) :: any
+		loop:connect(player)
+
+		local shared = { 1 }
+		loop:injectFromClient(player, "Wire.Echo", { a = shared, b = shared, f = function() end })
+		expect(got.a).toEqual({ 1 })
+		expect(got.b).toEqual({ 1 })
+		expect(got.a == got.b).toBe(false)
+		expect(got.a == shared).toBe(false)
+		expect(got.f).toBeNil()
+
+		local mixed: any = { "x", "y" }
+		mixed.note = "dropped"
+		loop:injectFromClient(player, "Wire.Echo", mixed)
+		expect(got).toEqual({ "x", "y" })
+
+		loop:injectFromClient(player, "Wire.Echo", { [true] = 1 })
+		expect(got).toEqual({ ["true"] = 1 })
+
+		local cyclic: any = {}
+		cyclic.self = cyclic
+		expect(function()
+			loop:injectFromClient(player, "Wire.Echo", cyclic)
+		end).toThrow("contains itself")
 	end)
 
 	T.it("rejects duplicate namespaces, rebinding and non-remotes", function()

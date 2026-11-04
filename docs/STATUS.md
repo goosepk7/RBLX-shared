@@ -15,7 +15,7 @@
 - Since 2026-11-04 the agents' sandbox can download the luau-lsp 1.70.0 release, so the strict type check runs locally too; Selene's Roblox std still can't be generated there.
 
 ## Known weak spots (core)
-- `Net.RobloxTransport` (the RemoteEvent wiring) can't run under lune; every test goes through the loopback transport. It needs a Studio smoke test once a game place exists.
+- `Net.RobloxTransport` (the RemoteEvent wiring) can't run under lune; every test goes through the loopback transport, which mirrors Roblox's documented argument rules. A one-click Studio smoke script lands before the games wire Net up.
 
 ## Tooling, CI, harness (`shared/tooling`)
 - [x] Repo skeleton: Rojo projects, wally.toml, rokit toolchain pins, StyLua, Selene, `.luaurc`, pre-commit

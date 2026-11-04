@@ -27,6 +27,9 @@ export type Schema<T> = {
 	-- Human-readable description used in rejection reasons, e.g. "integer[1, 10]".
 	describe: string,
 	check: (value: unknown) -> (boolean, string?),
+	-- True when Schema.any() appears anywhere inside. Client-to-server remotes refuse such
+	-- schemas unless they pass `allowAny = true`.
+	containsAny: boolean,
 	-- Phantom field carrying T for the type checker. Always nil at runtime.
 	_type: T?,
 }
@@ -107,12 +110,27 @@ local function rangeText(min: number?, max: number?): string
 		.. "]"
 end
 
-local function make<T>(kind: string, describe: string, check: (value: any) -> (boolean, string?)): Schema<T>
+local function make<T>(
+	kind: string,
+	describe: string,
+	check: (value: any) -> (boolean, string?),
+	containsAny: boolean?
+): Schema<T>
 	return table.freeze({
 		kind = kind,
 		describe = describe,
 		check = check,
+		containsAny = containsAny == true,
 	}) :: any
+end
+
+local function anyInside(schemas: { Schema<any> }): boolean
+	for _, schema in schemas do
+		if schema.containsAny then
+			return true
+		end
+	end
+	return false
 end
 
 function Schema.number(options: NumberOptions?): Schema<number>
@@ -218,7 +236,7 @@ function Schema.optional<T>(inner: Schema<T>): Schema<T?>
 			return true, nil
 		end
 		return check(value)
-	end)
+	end, inner.containsAny)
 end
 
 -- No payload: the remote takes no arguments.
@@ -231,11 +249,12 @@ function Schema.none(): Schema<nil>
 	end)
 end
 
--- Anything at all. Avoid on client-to-server remotes; prefer a precise schema.
+-- Anything at all. Client-to-server remotes refuse it (anywhere in their payload schema) unless
+-- they pass `allowAny = true`; prefer a precise schema.
 function Schema.any(): Schema<any>
 	return make("any", "any", function(_value: any): (boolean, string?)
 		return true, nil
-	end)
+	end, true)
 end
 
 function Schema.array<T>(item: Schema<T>, options: ArrayOptions?): Schema<{ T }>
@@ -273,7 +292,7 @@ function Schema.array<T>(item: Schema<T>, options: ArrayOptions?): Schema<{ T }>
 			end
 		end
 		return true, nil
-	end)
+	end, item.containsAny)
 end
 
 function Schema.map<K, V>(key: Schema<K>, value: Schema<V>, options: MapOptions?): Schema<{ [K]: V }>
@@ -301,13 +320,14 @@ function Schema.map<K, V>(key: Schema<K>, value: Schema<V>, options: MapOptions?
 			end
 		end
 		return true, nil
-	end)
+	end, key.containsAny or value.containsAny)
 end
 
 function Schema.struct(fields: { [string]: Schema<any> }, options: StructOptions?): Schema<any>
 	local opts: StructOptions = options or {}
 	local allowExtra = opts.allowExtra == true
 	local names: { string } = {}
+	local fieldList: { Schema<any> } = {}
 	for name, field in fields do
 		assert(type(name) == "string", "Schema.struct: field names must be strings")
 		assert(
@@ -315,6 +335,7 @@ function Schema.struct(fields: { [string]: Schema<any> }, options: StructOptions
 			"Schema.struct: field " .. name .. " is not a schema"
 		)
 		table.insert(names, name)
+		table.insert(fieldList, field)
 	end
 	table.sort(names)
 	local parts: { string } = {}
@@ -341,7 +362,7 @@ function Schema.struct(fields: { [string]: Schema<any> }, options: StructOptions
 			end
 		end
 		return true, nil
-	end)
+	end, anyInside(fieldList))
 end
 
 -- Valid when any of the given schemas accepts the value.
@@ -360,7 +381,7 @@ function Schema.union(...: Schema<any>): Schema<any>
 			end
 		end
 		return expected(describe, value)
-	end)
+	end, anyInside(options))
 end
 
 function Schema.instance(className: string?, options: InstanceOptions?): Schema<Instance>

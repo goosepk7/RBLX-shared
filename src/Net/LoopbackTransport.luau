@@ -7,9 +7,14 @@
 	  local server = Net.newContext({ side = "server", transport = loop.server, task = clock.task })
 	  local client = Net.newContext({ side = "client", transport = loop:connect(player) })
 
-	Delivery is synchronous. Arguments are copied the way Roblox serializes them (tables are
-	deep-copied without metatables; functions and threads arrive as nil), so handlers never
-	share references with the sender.
+	Delivery is synchronous. Arguments are copied following Roblox's documented remote argument
+	rules, so a test can't pass on a payload the real wire would change:
+	  * tables are deep-copied without metatables; a table referenced twice arrives as two copies
+	  * functions and threads arrive as nil
+	  * keys that are neither strings nor numbers (booleans, tables, instances, functions) become
+	    strings
+	  * a mixed table (number and string keys) keeps only its number-indexed entries
+	  * a table that contains itself errors
 ]]
 
 local Transport = require("./Transport")
@@ -39,7 +44,9 @@ export type Loopback = {
 
 local LoopbackTransport = {}
 
-local function copyValue(value: any, seen: { [any]: any }): any
+-- `ancestors` holds the tables on the current path only, so shared (non-cyclic) references copy
+-- fine and only true cycles error.
+local function copyValue(value: any, ancestors: { [any]: boolean }): any
 	local kind = type(value)
 	if kind == "function" or kind == "thread" then
 		return nil
@@ -47,18 +54,29 @@ local function copyValue(value: any, seen: { [any]: any }): any
 	if kind ~= "table" then
 		return value
 	end
-	if seen[value] then
+	if ancestors[value] then
 		error("Net.Loopback: cannot send a table that contains itself", 0)
 	end
-	seen[value] = true
-	local result = {}
-	for key, child in value do
-		local copiedKey = copyValue(key, seen)
-		if copiedKey ~= nil then
-			result[copiedKey] = copyValue(child, seen)
+	ancestors[value] = true
+	local hasNumberKey, hasOtherKey = false, false
+	for key in value do
+		if type(key) == "number" then
+			hasNumberKey = true
+		else
+			hasOtherKey = true
 		end
 	end
-	seen[value] = nil
+	local mixed = hasNumberKey and hasOtherKey
+	local result = {}
+	for key, child in value do
+		local keyKind = type(key)
+		if mixed and keyKind ~= "number" then
+			continue
+		end
+		local wireKey = if keyKind == "number" or keyKind == "string" then key else tostring(key)
+		result[wireKey] = copyValue(child, ancestors)
+	end
+	ancestors[value] = nil
 	return result
 end
 

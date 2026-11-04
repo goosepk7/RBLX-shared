@@ -25,8 +25,8 @@
 	  if result.ok then ... else warn(result.error) end
 	  Remotes.Banner:connect(function(text) ... end)
 
-	Every client-to-server message is checked in order: kill switch, argument count, rate limit
-	(per player, per remote; default 10/s burst 20), schema, guard. Malformed traffic is dropped,
+	Every client-to-server message is checked in order: kill switch, rate limit (per player, per
+	remote; default 10/s burst 20), argument count, schema, guard. Malformed traffic is dropped,
 	counted in metrics, and reported to AntiExploit as a strike; three strikes flags the player.
 ]]
 
