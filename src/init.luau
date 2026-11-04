@@ -13,6 +13,7 @@
 local RBLXShared = {
 	VERSION = "0.1.0",
 
+	Assets = require("@self/Assets"),
 	Sim = require("@self/Sim"),
 	Test = require("@self/Test"),
 	UI = require("@self/UI"),

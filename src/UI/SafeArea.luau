@@ -121,7 +121,7 @@ function SafeArea.new(props: Props?): SafeArea
 		if makeLayout then
 			makeLayout().Parent = frame
 		end
-		anchors[anchorName] = frame
+		(anchors :: any)[anchorName] = frame
 	end
 
 	local overlay = Create.group({ Name = "Overlay", ZIndex = 60, Parent = hud.scaled })
@@ -145,7 +145,7 @@ function SafeArea.new(props: Props?): SafeArea
 		local area = hud.scaled.AbsoluteSize
 		local rects = Layout.anchors(screen.X, screen.Y, { x = origin.X, y = 0, w = area.X, h = area.Y }, s)
 		for anchorName, frame in anchors do
-			local r = rects[anchorName]
+			local r: Layout.Rect = (rects :: any)[anchorName]
 			frame.Position = UDim2.fromOffset((r.x - origin.X) / s, r.y / s)
 			frame.Size = UDim2.fromOffset(r.w / s, r.h / s)
 		end

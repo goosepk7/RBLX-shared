@@ -77,7 +77,7 @@ T.describe("UI.Layout", function()
 						error(`{where} leaves the screen`)
 					end
 				end
-				local chip = rects.BottomCenter
+				local chip: Layout.Rect = (rects :: any).BottomCenter
 				expect(chip.w > 0).toBe(true)
 				expect(chip.x >= stick.x + stick.w).toBe(true)
 				expect(chip.x + chip.w <= arc.x).toBe(true)
