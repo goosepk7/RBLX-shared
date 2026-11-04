@@ -145,7 +145,8 @@ T.describe("UI.Theme", function()
 
 	T.it("every variant references real tokens in both games", function()
 		for _, colors in Theme.VARIANTS do
-			for _, game in { "stilts", "car" } :: { Theme.GameId } do
+			local games: { Theme.GameId } = { "stilts", "car" }
+			for _, game in games do
 				for _, key in { "fill", "edge", "text" } do
 					expect(Theme.hex((colors :: any)[key], game)).toBeType("string")
 				end

@@ -16,7 +16,7 @@ T.describe("UI.Layout", function()
 
 	T.it("every tappable control is >= 44 px at the smallest scale (§5.2)", function()
 		local s = Layout.MIN_SCALE
-		local tappable = {
+		local tappable: { [string]: number } = {
 			button = Tokens.size.buttonHeight + Tokens.edge.button,
 			buttonSmall = Tokens.size.buttonHeightSmall,
 			iconButton = Tokens.size.iconButton,
