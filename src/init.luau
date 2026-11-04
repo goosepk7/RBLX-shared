@@ -22,6 +22,7 @@ local RBLXShared = {
 	Test = require("@self/Test"),
 	Types = require("@self/Types"),
 	Util = require("@self/Util"),
+	UI = require("@self/UI"),
 }
 
 return RBLXShared
