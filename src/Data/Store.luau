@@ -521,10 +521,27 @@ function Store.new<T>(options: StoreOptions<T>): Store<T>
 					return current, { profile.userId }
 				end
 				size = checked
-				included = {}
-				for purchaseId in record.unsaved do
-					table.insert(included, purchaseId)
+				-- In grant order (the receipt history's order), so ReceiptGranted listeners see
+				-- several grants stored by one save in the order they happened.
+				local ordered: { string } = {}
+				local seen: { [string]: boolean } = {}
+				for _, r in profile.meta.receipts do
+					if record.unsaved[r.purchaseId] ~= nil and not seen[r.purchaseId] then
+						seen[r.purchaseId] = true
+						table.insert(ordered, r.purchaseId)
+					end
 				end
+				local rest: { string } = {}
+				for purchaseId in record.unsaved do
+					if not seen[purchaseId] then
+						table.insert(rest, purchaseId)
+					end
+				end
+				table.sort(rest)
+				for _, purchaseId in rest do
+					table.insert(ordered, purchaseId)
+				end
+				included = ordered
 				local meta = table.clone(profile.meta)
 				meta.receipts = Deep.copy(profile.meta.receipts)
 				return Document.forSave(current, data, meta, now(), verdict == "saved"), { profile.userId }

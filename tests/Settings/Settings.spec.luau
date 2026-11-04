@@ -186,11 +186,35 @@ T.describe("Settings server and client", function()
 			changes += 1
 		end)
 		-- A modified client sends a string where a number belongs.
-		loop:injectFromClient(player, "RBLXSettings.Set", { id = "musicVolume", value = "loud" })
+		loop:injectFromClient(player, "RBLXSettings.Set", { musicVolume = "loud" })
 		world.clock:advance(0.1)
 		expect(settings:get(player, "musicVolume")).toBe(0.6)
 		expect(changes).toBe(0)
 		expect(client:get("musicVolume")).toBe(0.6)
+	end)
+
+	T.it("sends a reset of many settings as one message", function()
+		local add: { any } = {}
+		for i = 1, 20 do
+			table.insert(add, { id = "extra" .. i, kind = "toggle", default = false, section = "game" })
+		end
+		local world, _server, settings, join = setup(Settings.schema({ add = add :: any }))
+		local player, client = join(1)
+		world.clock:advance(1)
+		for i = 1, 20 do
+			client:set("extra" .. i, true)
+		end
+		client:set("musicVolume", 0.1)
+		client:flush()
+		world.clock:advance(0.1)
+		expect(settings:get(player, "extra20")).toBe(true)
+		client:reset()
+		client:flush()
+		world.clock:advance(0.1)
+		for i = 1, 20 do
+			expect(settings:get(player, "extra" .. i)).toBe(false)
+		end
+		expect(settings:get(player, "musicVolume")).toBe(0.6)
 	end)
 
 	T.it("fires Changed on the server for game logic", function()

@@ -240,7 +240,14 @@ function Slider.new(props: Props): (Frame, Handle)
 		conns,
 		UserInputService.InputEnded:Connect(function(input: InputObject)
 			local d = dragging
-			if d and (input == d or input.UserInputType == d.UserInputType) then
+			-- Touch: only the finger that grabbed the knob lets go of it, not a second finger.
+			if
+				d
+				and (
+					input == d
+					or (d.UserInputType ~= Enum.UserInputType.Touch and input.UserInputType == d.UserInputType)
+				)
+			then
 				release()
 			end
 		end)

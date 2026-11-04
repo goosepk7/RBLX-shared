@@ -265,8 +265,9 @@ end
 --- The Net remotes for a schema. Both sides call this with the same schema.
 function Settings.remotes(schema: Schema, options: { context: any? }?): any
 	return Net.namespace("RBLXSettings", {
+		-- Changes since the last send, as one map: a reset or a burst of edits is one message.
 		Set = Net.clientEvent(
-			S.struct({ id = S.enum(schema.ids), value = valueSchema() }),
+			S.map(S.enum(schema.ids), valueSchema(), { maxEntries = 64 }),
 			{ rateLimit = { rate = 6, burst = 16 } }
 		),
 		-- The client asks once on start: its scripts may run after the profile loaded.
@@ -359,14 +360,20 @@ function Server.new(options: ServerOptions): Server
 		return true
 	end
 
-	remotes.Set:connect(function(player: Player, payload: { id: string, value: Value })
+	remotes.Set:connect(function(player: Player, changes: { [string]: Value })
 		if profileOf(player) == nil then
 			return
 		end
-		if not server:set(player, payload.id, payload.value) then
-			-- Out of range or the wrong type for this setting (an old client, or a modified one):
-			-- put the client back on the saved values.
-			Log.info("Settings", `refused {payload.id} = {tostring(payload.value)} from {player.Name}`)
+		local refused = false
+		for id, value in changes do
+			if not server:set(player, id, value) then
+				-- Out of range or the wrong type for this setting (an old client, or a modified
+				-- one): put the client back on the saved values.
+				Log.info("Settings", `refused {id} = {tostring(value)} from {player.Name}`)
+				refused = true
+			end
+		end
+		if refused then
 			sendSnapshot(player)
 		end
 	end)
@@ -515,8 +522,8 @@ function Client.new(options: ClientOptions?): Client
 
 	function client.flush(_self: Client)
 		generation += 1
-		for id, value in pending do
-			remotes.Set:fire({ id = id, value = value })
+		if next(pending) ~= nil then
+			remotes.Set:fire(table.clone(pending))
 		end
 		table.clear(pending)
 	end

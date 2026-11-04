@@ -92,6 +92,8 @@ T.describe("Admin.parse", function()
 		expect(Admin.parse('/admin kick bob "too many lunges"')).toEqual({ "kick", "bob", "too many lunges" })
 		expect(Admin.parse("  grant   me Wins 5 ")).toEqual({ "grant", "me", "Wins", "5" })
 		expect(Admin.parse("")).toEqual({})
+		expect(Admin.parse("/adminx foo")).toEqual({ "/adminx", "foo" })
+		expect(Admin.parse("/admin")).toEqual({})
 	end)
 end)
 

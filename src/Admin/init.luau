@@ -97,9 +97,19 @@ local MAX_LINE = 200
 local AUDIT_SIZE = 100
 
 --- Splits a command line into words; "double quotes" keep spaces. `/admin` is optional.
+-- Removes a leading "/admin" only as a whole word: "/adminx foo" keeps its first word.
+local function stripPrefix(line: string): string
+	local text = string.gsub(line, "^%s*", "")
+	if string.sub(text, 1, 6) == "/admin" and (#text == 6 or string.match(string.sub(text, 7, 7), "%s")) then
+		return (string.gsub(string.sub(text, 7), "^%s*", ""))
+	end
+	return text
+end
+Admin.stripPrefix = stripPrefix
+
 function Admin.parse(line: string): { string }
 	local words: { string } = {}
-	local text = string.gsub(line, "^%s*/admin%s*", "")
+	local text = stripPrefix(line)
 	local i = 1
 	local n = #text
 	while i <= n do
@@ -661,7 +671,7 @@ function Server.new(options: ServerOptions): Server
 			if player == nil or not server:isOwner(player) then
 				return
 			end
-			local rest = string.gsub(text, "^%s*/admin%s*", "")
+			local rest = stripPrefix(text)
 			if rest == "" then
 				server.remotes.Open:fire(player, nil)
 				return

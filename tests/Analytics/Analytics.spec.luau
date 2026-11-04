@@ -141,6 +141,77 @@ T.describe("Analytics", function()
 		expect((analytics:getState(player) :: Analytics.State).purchases).toBe(2)
 	end)
 
+	T.it("counts a purchase the release save granted when the player next loads", function()
+		local world, server, analytics, sent = setup()
+		-- p1 and p2 were logged when granted, but only p1's counters made it into the save.
+		local state = Analytics.newState(1_699_000_000)
+		state.sessions, state.purchases, state.robuxSpent, state.lastPurchaseId = 1, 1, 10, "p1"
+		state.firsts.purchase = 1_699_000_100
+		world:seed(
+			1,
+			World.document({ coins = 0, inventory = {}, analytics = state }, {
+				receipts = {
+					{ purchaseId = "p1", productId = 77, grantedAt = 1_699_000_100 },
+					{ purchaseId = "p2", productId = 77, grantedAt = 1_699_000_200 },
+				},
+			})
+		)
+		world:seed(
+			2,
+			World.document({ coins = 0, inventory = {}, analytics = Analytics.newState(1_699_000_000) }, {
+				receipts = { { purchaseId = "q1", productId = 77, grantedAt = 1_699_000_300 } },
+			})
+		)
+		local a = server:join(1)
+		local b = server:join(2)
+		world.clock:advance(1)
+		local stateA = analytics:getState(a) :: Analytics.State
+		expect(stateA.purchases).toBe(2)
+		expect(stateA.lastPurchaseId).toBe("p2")
+		expect(stateA.firsts.purchase).toBe(1_699_000_100)
+		local stateB = analytics:getState(b) :: Analytics.State
+		expect(stateB.purchases).toBe(1)
+		expect(stateB.firsts.purchase).toBe(1_699_000_300)
+		-- The next real purchase is not a first purchase.
+		world.mps.ProcessReceipt = function(receipt: any)
+			return server.store:processReceipt(receipt, function(_profile: any)
+				return true
+			end)
+		end
+		world.mps:purchaseProduct(b, 77, { purchaseId = "q2" })
+		world.clock:advance(6)
+		expect(#named(sent, "purchase")).toBe(1)
+		expect(#named(sent, "first_purchase")).toBe(0)
+		expect((analytics:getState(b) :: Analytics.State).purchases).toBe(2)
+	end)
+
+	T.it("counts nothing extra on reload after one save stored several purchases", function()
+		local world, server, analytics, sent = setup()
+		world.mps.ProcessReceipt = function(receipt: any)
+			return server.store:processReceipt(receipt, function(_profile: any)
+				return true
+			end)
+		end
+		local player = server:join(1)
+		world.clock:advance(1)
+		local ids = { "zeta", "alpha", "mu", "beta", "omega", "chi" }
+		world.dss:failNext("UpdateAsync", { times = 3 * #ids })
+		for _, id in ids do
+			world.mps:purchaseProduct(player, 77, { purchaseId = id })
+		end
+		world.clock:advance(60) -- the autosave stores all six
+		local state = analytics:getState(player) :: Analytics.State
+		expect(state.purchases).toBe(#ids)
+		expect(state.lastPurchaseId).toBe("chi")
+		server:leave(player)
+		world.clock:advance(1)
+		local again = server:join(1)
+		world.clock:advance(1)
+		expect((analytics:getState(again) :: Analytics.State).purchases).toBe(#ids)
+		expect(#named(sent, "purchase")).toBe(#ids)
+		expect(#named(sent, "first_purchase")).toBe(1)
+	end)
+
 	T.it("maps economy transactions to sources and sinks, and skips adjustments", function()
 		local world, server, analytics, sent = setup()
 		local economy = Economy.new({
@@ -191,6 +262,27 @@ T.describe("Analytics", function()
 		local diagnostics = analytics:getDiagnostics()
 		expect(diagnostics.queued).toBe(5)
 		expect(diagnostics.dropped).toBe(6) -- the join and the first five ticks
+	end)
+
+	T.it("sheds economy events before custom ones, and those before funnel events", function()
+		local _world, server, analytics, sent = setup({ queueLimit = 4 })
+		local player = server:join(1) -- queues "join" (custom)
+		analytics:onboarding(player, 1, "Spawned")
+		analytics:economy(player, "source", "Cash", 1, 1, "Gameplay", "tick")
+		analytics:track(player, "tick", 1)
+		-- The queue is full from here on.
+		analytics:economy(player, "source", "Cash", 1, 2, "Gameplay", "tick") -- drops the first economy event
+		analytics:economy(player, "source", "Cash", 1, 3, "Gameplay", "tick") -- drops the second
+		analytics:onboarding(player, 2, "Moved") -- drops the third
+		analytics:onboarding(player, 3, "Jumped") -- no economy left: drops "join", the oldest custom
+		analytics:onboarding(player, 4, "Won") -- drops "tick"
+		expect(analytics:getDiagnostics().dropped).toBe(5)
+		analytics:flush()
+		local steps: { any } = {}
+		for _, item in sent do
+			table.insert(steps, item.event.step)
+		end
+		expect(steps).toEqual({ 1, 2, 3, 4 } :: { any })
 	end)
 
 	T.it("reports sink errors instead of swallowing them, and keeps going", function()
