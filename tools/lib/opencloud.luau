@@ -72,7 +72,7 @@ function OpenCloud.new(options: Options): Client
 	assert(type(options.apiKey) == "string" and options.apiKey ~= "", "OpenCloud.new: apiKey is required")
 	local maxAttempts = options.maxAttempts or 5
 	local baseDelay = options.baseDelay or 1
-	local send = options.send or net.request
+	local send: (params: any) -> any = if options.send then options.send else net.request :: any
 	local sleep = options.sleep or function(seconds: number)
 		task.wait(seconds)
 	end
@@ -83,7 +83,8 @@ function OpenCloud.new(options: Options): Client
 	function client.request(_self: Client, method: string, url: string, requestOptions: RequestOptions?): Response
 		local opts: RequestOptions = requestOptions or {}
 		local headers: { [string]: string } = { ["x-api-key"] = options.apiKey }
-		for key, value in opts.headers or {} do
+		local extraHeaders: { [string]: string } = opts.headers or {}
+		for key, value in extraHeaders do
 			headers[key] = value
 		end
 		local body = opts.body
@@ -106,7 +107,9 @@ function OpenCloud.new(options: Options): Client
 			if ok and not shouldRetry(status) then
 				local decoded: any = nil
 				if raw.body ~= "" then
-					local decodedOk, value = pcall(serde.decode, "json", raw.body)
+					local decodedOk, value = pcall(function()
+						return serde.decode("json", raw.body)
+					end)
 					if decodedOk then
 						decoded = value
 					end
@@ -114,7 +117,7 @@ function OpenCloud.new(options: Options): Client
 				return {
 					ok = status >= 200 and status < 300,
 					status = status,
-					body = raw.body,
+					body = tostring(raw.body),
 					json = decoded,
 					headers = raw.headers or {},
 					attempts = attempt,
@@ -124,7 +127,7 @@ function OpenCloud.new(options: Options): Client
 				return {
 					ok = false,
 					status = status,
-					body = if ok then raw.body else tostring(raw),
+					body = if ok then tostring(raw.body) else tostring(raw),
 					json = nil,
 					headers = if ok then raw.headers or {} else {},
 					attempts = attempt,

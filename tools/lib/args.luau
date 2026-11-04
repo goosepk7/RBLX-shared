@@ -15,7 +15,8 @@ local Args = {}
 
 function Args.parse(argv: { string }, valueFlags: { string }?): Args
 	local takesValue: { [string]: boolean } = {}
-	for _, name in valueFlags or {} do
+	local valueNames: { string } = valueFlags or {}
+	for _, name in valueNames do
 		takesValue[name] = true
 	end
 	local flags: { [string]: string | boolean } = {}
@@ -25,7 +26,7 @@ function Args.parse(argv: { string }, valueFlags: { string }?): Args
 		local arg = argv[i]
 		local key, value = string.match(arg, "^%-%-([%w%-_]+)=(.*)$")
 		if key then
-			flags[key] = value
+			flags[key] = value :: string
 		else
 			local name = string.match(arg, "^%-%-([%w%-_]+)$")
 			if name then

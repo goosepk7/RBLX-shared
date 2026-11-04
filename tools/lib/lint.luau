@@ -237,7 +237,7 @@ function Lint.loadConfig(): Config
 end
 
 function Lint.main(argv: { string }): number
-	local roots = if #argv > 0 then argv else { "src" }
+	local roots: { string } = if #argv > 0 then argv else { "src" }
 	local config = Lint.loadConfig()
 	local assetNames = Lint.loadAssetNames(config.manifests)
 	local files: { string } = {}

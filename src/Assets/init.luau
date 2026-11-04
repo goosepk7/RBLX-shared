@@ -42,7 +42,7 @@ export type ImageOptions = {
 	props: { [string]: any }?,
 }
 
-type Registered = IdEntry & { owner: string }
+type Registered = { kind: string, status: string, assetId: number?, owner: string }
 
 local Assets = {}
 
@@ -263,12 +263,12 @@ function Assets.applyImage(target: ImageLabel | ImageButton, name: string, size:
 	local ref = Assets.ref(resolved)
 	local existing = target:FindFirstChild("Placeholder_" .. resolved)
 	if ref.placeholder then
-		target.Image = ""
+		(target :: any).Image = ""
 		if not existing then
 			Assets.placeholder(resolved, { Size = UDim2.fromScale(1, 1), Parent = target })
 		end
 	else
-		target.Image = ref.uri
+		(target :: any).Image = ref.uri
 		if existing then
 			existing:Destroy()
 		end

@@ -59,9 +59,9 @@ T.describe("tools/upload_assets (mock Open Cloud)", function()
 		local port = 47000 + (os.time() % 1000)
 		local server = net.serve(port, function(request)
 			table.insert(requests, {
-				method = request.method,
+				method = request.method :: string,
 				path = request.path,
-				key = request.headers["x-api-key"],
+				key = request.headers["x-api-key"] :: string?,
 				body = request.body,
 			})
 			if request.method == "POST" and request.path == "/assets/v1/assets" then
