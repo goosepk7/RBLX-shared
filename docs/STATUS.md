@@ -18,8 +18,8 @@
 - [x] Repo skeleton: Rojo projects, wally.toml, rokit toolchain pins, StyLua, Selene, `.luaurc`, pre-commit
 - [x] GitHub Actions CI: StyLua check, Selene, luau-lsp analyze, lune tests, Rojo build artifact
 - [x] Test harness: describe/it runner, matchers, virtual clock + `task` emulation
-- [x] Fakes: DataStoreService (failure injection, metadata, ordered stores), MarketplaceService (receipts, replay, retry), Players
-- [x] Sim harness: deterministic RNG, scheduler, synthetic players, recorder + CSV/JSON, targets, tuning helpers, Studio/Open Cloud runner shell (`lune run sims`)
+- [x] Fakes: DataStoreService (failure injection, metadata, ordered stores, UpdateAsync conflict reruns + beforeCommit race hook, real request budgets), MarketplaceService (receipts, replay, retry), Players
+- [x] Sim harness: deterministic RNG, scheduler, synthetic players, recorder + CSV/JSON, targets, tuning helpers (band targets fixed), Studio/Open Cloud runner shell (`lune run sims`)
 - [x] Assets: manifest-backed lookup with visible placeholders, `AssetIds.luau` generation
 - [x] Tools: `upload_assets` (Open Cloud, end-to-end tested against a mock, resolves Decal → Image ids), `resolve_decals`, `verify_assets`, `gen_asset_ids`, custom lint (§9.4), shared Open Cloud client
 - [x] docs/API.md sections for Test, Sim, Assets; docs/TOOLING.md
