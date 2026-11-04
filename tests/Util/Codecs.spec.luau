@@ -169,9 +169,11 @@ T.describe("Util.Hash", function()
 	T.it("matches the published FNV-1a vectors", function()
 		expect(Hash.fnv1a32("")).toBe(0x811C9DC5)
 		expect(Hash.fnv1a32("a")).toBe(0xE40C292C)
+		expect(Hash.fnv1a32("abc")).toBe(440920331) -- the value the module header shows
 		expect(Hash.fnv1a32("foobar")).toBe(0xBF9CF968)
 		expect(Hash.fnv1a64("")).toBe("cbf29ce484222325")
 		expect(Hash.fnv1a64("a")).toBe("af63dc4c8601ec8c")
+		expect(Hash.fnv1a64("abc")).toBe("e71fa2190541574b")
 		expect(Hash.fnv1a64("foobar")).toBe("85944171f73967e8")
 	end)
 
