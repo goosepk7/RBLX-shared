@@ -14,6 +14,17 @@
 	  * Errors are raised as Roblox-style strings starting with the numeric code: "502: ...".
 	  * UpdateAsync(key, transform) calls transform(oldValue, keyInfo); returning nil cancels
 	    the write and UpdateAsync returns nil. Returns (newValue, keyInfo) on success.
+	    Like Roblox, if the key changes between the read and the commit, transform runs again
+	    on the fresh value (up to 10 times, then "UpdateAsync conflict" errors), so transforms
+	    must be pure. setBeforeCommit(fn) runs fn({ method, store, scope, key, attempt }) after
+	    each transform and before the commit check; a test makes another "server" write the key
+	    there (steal a session lock, bump a version) to force the race.
+	  * Request budgets are opt-in (enableBudgets / setBudget). Each call spends from its
+	    DataStoreRequestType budget (UpdateAsync spends GetAsync + SetIncrementAsync). Budgets
+	    refill per minute of setNow time at Roblox's documented rates (base + perPlayer *
+	    players), up to `burstMinutes` worth. A call with no budget errors like a full throttle
+	    queue ("301: GetAsync request dropped..."). Without enableBudgets the budget is
+	    unlimited, so tests that don't care never throttle.
 	  * Versions are monotonically increasing strings per key, like Roblox.
 	  * One service instance can be shared by several simulated servers to test session locks.
 ]]
@@ -40,6 +51,18 @@ export type FailureSpec = {
 }
 
 export type CallRecord = { method: string, store: string, key: string?, ok: boolean, error: string? }
+
+-- Passed to the setBeforeCommit hook. `attempt` is 1 on the first transform run.
+export type CommitContext = { method: string, store: string, scope: string, key: string, attempt: number }
+
+export type BudgetOptions = {
+	-- Players in the server; rates scale with it. Default 0.
+	players: number?,
+	-- Starting budget for every type. Default one minute's worth.
+	initial: number?,
+	-- Budgets stop refilling at this many minutes' worth. Default 3.
+	burstMinutes: number?,
+}
 
 export type FakeDataStore = {
 	Name: string,
@@ -83,6 +106,8 @@ export type FakeDataStoreService = {
 	failNext: (self: FakeDataStoreService, method: string, spec: FailureSpec?) -> (),
 	setFailureRate: (self: FakeDataStoreService, probability: number, seed: number?) -> (),
 	setBudget: (self: FakeDataStoreService, budget: number) -> (),
+	enableBudgets: (self: FakeDataStoreService, options: BudgetOptions?) -> (),
+	setBeforeCommit: (self: FakeDataStoreService, hook: ((CommitContext) -> ())?) -> (),
 	setNow: (self: FakeDataStoreService, now: () -> number) -> (),
 	newSetOptions: (self: FakeDataStoreService) -> SetOptions,
 	inspect: (self: FakeDataStoreService, store: string, key: string, scope: string?) -> any,
@@ -104,6 +129,40 @@ type Entry = {
 
 local MAX_VALUE_CHARS = 4_194_303
 local MAX_KEY_CHARS = 50
+local MAX_UPDATE_ATTEMPTS = 10
+local UNLIMITED = 1_000_000
+
+-- Per-minute budget rates: base + perPlayer * players (Roblox docs, DataStore limits).
+local RATES: { [string]: { base: number, perPlayer: number } } = {
+	GetAsync = { base = 60, perPlayer = 10 },
+	SetIncrementAsync = { base = 60, perPlayer = 10 },
+	GetSortedAsync = { base = 5, perPlayer = 2 },
+	SetIncrementSortedAsync = { base = 30, perPlayer = 5 },
+}
+
+-- Which budgets each call spends, and its throttle error code.
+local COSTS: { [string]: { types: { string }, code: number } } = {
+	GetAsync = { types = { "GetAsync" }, code = 301 },
+	SetAsync = { types = { "SetIncrementAsync" }, code = 302 },
+	IncrementAsync = { types = { "SetIncrementAsync" }, code = 303 },
+	UpdateAsync = { types = { "GetAsync", "SetIncrementAsync" }, code = 304 },
+	RemoveAsync = { types = { "SetIncrementAsync" }, code = 306 },
+	["Ordered.GetAsync"] = { types = { "GetAsync" }, code = 301 },
+	["Ordered.SetAsync"] = { types = { "SetIncrementSortedAsync" }, code = 302 },
+	["Ordered.IncrementAsync"] = { types = { "SetIncrementSortedAsync" }, code = 303 },
+	["Ordered.UpdateAsync"] = { types = { "GetAsync", "SetIncrementSortedAsync" }, code = 304 },
+	["Ordered.RemoveAsync"] = { types = { "SetIncrementSortedAsync" }, code = 306 },
+	["Ordered.GetSortedAsync"] = { types = { "GetSortedAsync" }, code = 305 },
+	["Ordered.AdvanceToNextPageAsync"] = { types = { "GetSortedAsync" }, code = 305 },
+}
+
+-- Accepts Enum.DataStoreRequestType items, enum-like tables with Name, or plain strings.
+local function requestTypeName(requestType: any): string
+	local text = if type(requestType) == "table" and type(requestType.Name) == "string"
+		then requestType.Name
+		else tostring(requestType)
+	return string.match(text, "([%w]+)$") or text
+end
 
 local DataStoreService = {}
 
@@ -202,7 +261,13 @@ function DataStoreService.new(): FakeDataStoreService
 	local failures: { { method: string, spec: FailureSpec, remaining: number } } = {}
 	local failureRate = 0
 	local rngState = 1
-	local budget = 1_000_000
+	local budgetsEnabled = false
+	local budgetPlayers = 0
+	local burstMinutes = 3
+	local budgets: { [string]: number } = {}
+	local lastRefill = 0
+	local beforeCommit: ((CommitContext) -> ())? = nil
+	local inHook = false
 	local callLog: { CallRecord } = {}
 	local now: () -> number = function()
 		return os.time() * 1000
@@ -225,7 +290,50 @@ function DataStoreService.new(): FakeDataStoreService
 		return x / 4294967296
 	end
 
-	local function guard(method: string, storeName: string, key: string?)
+	local function rate(requestType: string): number
+		local r = RATES[requestType]
+		return if r then r.base + r.perPlayer * budgetPlayers else UNLIMITED
+	end
+
+	local function refill()
+		local t = now()
+		local elapsedMinutes = math.max(0, t - lastRefill) / 60000
+		lastRefill = t
+		for requestType in RATES do
+			local perMinute = rate(requestType)
+			budgets[requestType] =
+				math.min(perMinute * burstMinutes, (budgets[requestType] or 0) + perMinute * elapsedMinutes)
+		end
+	end
+
+	-- Spends the call's budgets, or raises the throttle error without spending any.
+	local function spend(method: string, storeName: string, key: string?)
+		if not budgetsEnabled then
+			return
+		end
+		local cost = COSTS[method]
+		if not cost then
+			return
+		end
+		refill()
+		for _, requestType in cost.types do
+			if (budgets[requestType] or 0) < 1 then
+				local shortName = string.gsub(method, "^Ordered%.", "")
+				local text = string.format(
+					"%d: %s request dropped. Request was throttled, but throttled request queue was full.",
+					cost.code,
+					shortName
+				)
+				table.insert(callLog, { method = shortName, store = storeName, key = key, ok = false, error = text })
+				error(text, 0)
+			end
+		end
+		for _, requestType in cost.types do
+			budgets[requestType] -= 1
+		end
+	end
+
+	local function guard(method: string, storeName: string, key: string?, budgetKey: string?)
 		if key ~= nil then
 			if type(key) ~= "string" or #key == 0 then
 				error("101: Key name can't be empty.", 0)
@@ -257,6 +365,7 @@ function DataStoreService.new(): FakeDataStoreService
 			table.insert(callLog, { method = method, store = storeName, key = key, ok = false, error = text })
 			error(text, 0)
 		end
+		spend(budgetKey or method, storeName, key)
 		table.insert(callLog, { method = method, store = storeName, key = key, ok = true })
 	end
 
@@ -333,15 +442,40 @@ function DataStoreService.new(): FakeDataStoreService
 			transform: (any, KeyInfo?) -> ...any
 		): (any, KeyInfo?)
 			guard("UpdateAsync", name, key)
-			local existing = bucket(id)[key]
-			local old = if existing then deepCopy(existing.value) else nil
-			local info = if existing then makeKeyInfo(existing) else nil
-			local newValue, userIds, metadata = transform(old, info)
-			if newValue == nil then
-				return nil, nil
+			for attempt = 1, MAX_UPDATE_ATTEMPTS do
+				local existing = bucket(id)[key]
+				local readVersion = if existing then existing.version else nil
+				local old = if existing then deepCopy(existing.value) else nil
+				local info = if existing then makeKeyInfo(existing) else nil
+				local newValue, userIds, metadata = transform(old, info)
+				if newValue == nil then
+					return nil, nil
+				end
+				local hook = beforeCommit
+				if hook and not inHook then
+					inHook = true
+					local ok, err = pcall(hook :: any, {
+						method = "UpdateAsync",
+						store = name,
+						scope = scope or "global",
+						key = key,
+						attempt = attempt,
+					})
+					inHook = false
+					if not ok then
+						error(err, 0)
+					end
+				end
+				local current = bucket(id)[key]
+				local currentVersion = if current then current.version else nil
+				if currentVersion == readVersion then
+					local entry = write(id, key, newValue, userIds, metadata)
+					return deepCopy(entry.value), makeKeyInfo(entry)
+				end
+				-- Someone else wrote the key since our read: rerun transform on the fresh value.
+				table.insert(callLog, { method = "UpdateAsync.conflict", store = name, key = key, ok = true })
 			end
-			local entry = write(id, key, newValue, userIds, metadata)
-			return deepCopy(entry.value), makeKeyInfo(entry)
+			error(string.format("UpdateAsync conflict: %q changed during %d attempts", key, MAX_UPDATE_ATTEMPTS), 0)
 		end
 
 		function store.RemoveAsync(_s: FakeDataStore, key: string): (any, KeyInfo?)
@@ -393,18 +527,18 @@ function DataStoreService.new(): FakeDataStoreService
 		end
 
 		function store.GetAsync(_s: FakeOrderedDataStore, key: string): number?
-			guard("GetAsync", name, key)
+			guard("GetAsync", name, key, "Ordered.GetAsync")
 			return values[key]
 		end
 
 		function store.SetAsync(_s: FakeOrderedDataStore, key: string, value: number)
-			guard("SetAsync", name, key)
+			guard("SetAsync", name, key, "Ordered.SetAsync")
 			checkInteger(value)
 			values[key] = value
 		end
 
 		function store.UpdateAsync(_s: FakeOrderedDataStore, key: string, transform: (number?) -> number?): number?
-			guard("UpdateAsync", name, key)
+			guard("UpdateAsync", name, key, "Ordered.UpdateAsync")
 			local result = transform(values[key])
 			if result == nil then
 				return nil
@@ -415,14 +549,14 @@ function DataStoreService.new(): FakeDataStoreService
 		end
 
 		function store.IncrementAsync(_s: FakeOrderedDataStore, key: string, delta: number?): number
-			guard("IncrementAsync", name, key)
+			guard("IncrementAsync", name, key, "Ordered.IncrementAsync")
 			local value = (values[key] or 0) + math.floor(delta or 1)
 			values[key] = value
 			return value
 		end
 
 		function store.RemoveAsync(_s: FakeOrderedDataStore, key: string): number?
-			guard("RemoveAsync", name, key)
+			guard("RemoveAsync", name, key, "Ordered.RemoveAsync")
 			local old = values[key]
 			values[key] = nil
 			return old
@@ -435,7 +569,7 @@ function DataStoreService.new(): FakeDataStoreService
 			minValue: number?,
 			maxValue: number?
 		): FakePages
-			guard("GetSortedAsync", name, nil)
+			guard("GetSortedAsync", name, nil, "Ordered.GetSortedAsync")
 			assert(pageSize >= 1 and pageSize <= 100, "pageSize must be 1..100")
 			local entries: { OrderedEntry } = {}
 			for key, value in values do
@@ -466,7 +600,7 @@ function DataStoreService.new(): FakeDataStoreService
 				return slice()
 			end
 			function pages.AdvanceToNextPageAsync(p: FakePages)
-				guard("AdvanceToNextPageAsync", name, nil)
+				guard("AdvanceToNextPageAsync", name, nil, "Ordered.AdvanceToNextPageAsync")
 				page += 1
 				p.IsFinished = page * pageSize >= #entries
 			end
@@ -477,8 +611,27 @@ function DataStoreService.new(): FakeDataStoreService
 		return store
 	end
 
-	function service.GetRequestBudgetForRequestType(_self: FakeDataStoreService, _requestType: any): number
-		return budget
+	function service.GetRequestBudgetForRequestType(_self: FakeDataStoreService, requestType: any): number
+		if not budgetsEnabled then
+			return UNLIMITED
+		end
+		refill()
+		return math.floor(budgets[requestTypeName(requestType)] or 0)
+	end
+
+	function service.enableBudgets(_self: FakeDataStoreService, options: BudgetOptions?)
+		local opts: BudgetOptions = options or {}
+		budgetsEnabled = true
+		budgetPlayers = opts.players or 0
+		burstMinutes = opts.burstMinutes or 3
+		lastRefill = now()
+		for requestType in RATES do
+			budgets[requestType] = opts.initial or rate(requestType)
+		end
+	end
+
+	function service.setBeforeCommit(_self: FakeDataStoreService, hook: ((CommitContext) -> ())?)
+		beforeCommit = hook
 	end
 
 	function service.failNext(_self: FakeDataStoreService, method: string, spec: FailureSpec?)
@@ -491,8 +644,15 @@ function DataStoreService.new(): FakeDataStoreService
 		rngState = if seed and seed ~= 0 then seed else 1
 	end
 
-	function service.setBudget(_self: FakeDataStoreService, value: number)
-		budget = value
+	-- Enables budgets (if not already) and sets every type's current budget to `value`.
+	function service.setBudget(self: FakeDataStoreService, value: number)
+		if not budgetsEnabled then
+			self:enableBudgets()
+		end
+		refill()
+		for requestType in RATES do
+			budgets[requestType] = value
+		end
 	end
 
 	function service.setNow(_self: FakeDataStoreService, fn: () -> number)
@@ -552,7 +712,12 @@ function DataStoreService.new(): FakeDataStoreService
 		table.clear(stores)
 		table.clear(orderedStores)
 		failureRate = 0
-		budget = 1_000_000
+		budgetsEnabled = false
+		budgetPlayers = 0
+		burstMinutes = 3
+		table.clear(budgets)
+		beforeCommit = nil
+		inHook = false
 	end
 
 	return service

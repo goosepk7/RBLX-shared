@@ -132,6 +132,120 @@ T.describe("Fakes.DataStoreService", function()
 		expect(gets[2].error).toContain("502:")
 	end)
 
+	T.it("UpdateAsync reruns transform when another server writes between read and commit", function()
+		local dss = Fakes.DataStoreService.new()
+		local store = dss:GetDataStore("Profiles")
+		store:SetAsync("u_1", { lock = "server_a", coins = 1 })
+		local other = dss:GetDataStore("Profiles") -- a second server sharing the backend
+		local seen: { string } = {}
+		dss:setBeforeCommit(function(ctx)
+			if ctx.attempt == 1 then
+				-- Server B steals the session lock while server A's transform is in flight.
+				other:SetAsync(ctx.key, { lock = "server_b", coins = 50 })
+			end
+		end)
+		local result = store:UpdateAsync("u_1", function(old)
+			table.insert(seen, old.lock)
+			if old.lock ~= "server_a" then
+				return nil -- lost the lock: cancel
+			end
+			old.coins += 1
+			return old
+		end)
+		-- First run saw A's lock; the rerun saw B's lock and cancelled instead of clobbering it.
+		expect(seen).toEqual({ "server_a", "server_b" })
+		expect(result).toBeNil()
+		expect(dss:inspect("Profiles", "u_1")).toEqual({ lock = "server_b", coins = 50 })
+		expect(#dss:calls("UpdateAsync.conflict")).toBe(1)
+	end)
+
+	T.it("UpdateAsync commits the rerun result and gives up after repeated conflicts", function()
+		local dss = Fakes.DataStoreService.new()
+		local store = dss:GetDataStore("Counters")
+		store:SetAsync("k", 1)
+		dss:setBeforeCommit(function(ctx)
+			if ctx.attempt <= 2 then
+				dss:seed("Counters", ctx.key, 100 * ctx.attempt)
+			end
+		end)
+		local runs = 0
+		local value = store:UpdateAsync("k", function(old)
+			runs += 1
+			return old + 1
+		end)
+		expect(runs).toBe(3)
+		expect(value).toBe(201)
+
+		dss:setBeforeCommit(function(ctx)
+			dss:seed("Counters", ctx.key, ctx.attempt)
+		end)
+		expect(function()
+			store:UpdateAsync("k", function(old)
+				return old + 1
+			end)
+		end).toThrow("UpdateAsync conflict")
+
+		-- A hook error surfaces from UpdateAsync, and the hook doesn't fire for its own writes.
+		dss:setBeforeCommit(function()
+			error("hook boom")
+		end)
+		expect(function()
+			store:UpdateAsync("k", function(old)
+				return old
+			end)
+		end).toThrow("hook boom")
+		dss:setBeforeCommit(nil)
+	end)
+
+	T.it("request budgets decrement, throttle, and refill with time", function()
+		local dss = Fakes.DataStoreService.new()
+		local t = 0
+		dss:setNow(function()
+			return t
+		end)
+		local store = dss:GetDataStore("Profiles")
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(1_000_000) -- unlimited until enabled
+
+		dss:enableBudgets({ players = 2 }) -- 60 + 2 * 10 = 80 per minute
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(80)
+		store:GetAsync("a")
+		store:GetAsync("b")
+		expect(dss:GetRequestBudgetForRequestType({ Name = "GetAsync" })).toBe(78)
+		store:UpdateAsync("a", function()
+			return 1
+		end)
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(77)
+		expect(dss:GetRequestBudgetForRequestType("Enum.DataStoreRequestType.SetIncrementAsync")).toBe(79)
+
+		dss:setBudget(1)
+		store:GetAsync("a")
+		expect(function()
+			store:GetAsync("a")
+		end).toThrow("301: GetAsync request dropped")
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(0)
+		-- UpdateAsync needs both budgets; SetIncrementAsync still has 1 but GetAsync has none.
+		expect(function()
+			store:UpdateAsync("a", function()
+				return 2
+			end)
+		end).toThrow("304:")
+		expect(dss:GetRequestBudgetForRequestType("SetIncrementAsync")).toBe(1)
+
+		t += 30_000 -- half a minute refills 40
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(40)
+		store:GetAsync("a")
+		t += 60 * 60_000 -- an hour caps at 3 minutes' worth
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(240)
+
+		local ordered = dss:GetOrderedDataStore("Wins")
+		dss:setBudget(0)
+		expect(function()
+			ordered:GetSortedAsync(false, 10)
+		end).toThrow("305:")
+		dss:reset()
+		expect(dss:GetRequestBudgetForRequestType("GetAsync")).toBe(1_000_000)
+	end)
+
 	T.it("ordered stores sort and page", function()
 		local dss = Fakes.DataStoreService.new()
 		local board = dss:GetOrderedDataStore("Wins")
