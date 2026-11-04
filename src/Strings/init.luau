@@ -12,4 +12,19 @@
 
 local Loc = require("./Loc")
 
-return Loc.merge(require("@self/Admin"), require("@self/Common"), require("@self/Settings"))
+return Loc.merge(
+	require("@self/Admin"),
+	require("@self/Badges"),
+	require("@self/Codes"),
+	require("@self/Common"),
+	require("@self/Daily"),
+	require("@self/Errors"),
+	require("@self/Events"),
+	require("@self/Leaderboards"),
+	require("@self/Rebirth"),
+	require("@self/Rewards"),
+	require("@self/Settings"),
+	require("@self/Shop"),
+	require("@self/Time"),
+	require("@self/Tutorial")
+)

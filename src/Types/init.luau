@@ -166,6 +166,43 @@ export type StageResult = {
 	flags: { [string]: boolean },
 }
 
+-- Best results for one stage, kept in the player's progression state.
+export type StageRecord = {
+	-- Completed attempts.
+	clears: number,
+	-- Started attempts (completed or not).
+	attempts: number,
+	-- Fastest completed attempt, server-measured seconds. Nil until the first clear.
+	bestTime: number?,
+	-- Award ids earned on any attempt (stars or medals), e.g. { clear = true, underPar = true }.
+	awards: { [string]: boolean },
+	-- os.time() of the first clear and of the latest attempt.
+	firstClearAt: number?,
+	lastAt: number?,
+}
+
+--[[ Rewards (codes, daily rewards, events, rebirth milestones) ]]
+
+-- A timed multiplier handed out as a reward (Economy.addBoost).
+export type BoostReward = {
+	id: string,
+	factor: number,
+	seconds: number,
+	currencies: { CurrencyId }?,
+}
+
+-- Something a player receives. Every part is optional; an empty reward grants nothing.
+export type Reward = {
+	-- Currency id -> amount. Paid with the granting module's reason (codes use "code", a grant;
+	-- daily and events use earn reasons, so they are multiplied).
+	currencies: { [CurrencyId]: number }?,
+	-- Shop item ids. An item the player already owns is skipped and pays `ifOwned` instead.
+	items: { string }?,
+	boosts: { BoostReward }?,
+	-- Currency paid once per item that was already owned (duplicate compensation).
+	ifOwned: { [CurrencyId]: number }?,
+}
+
 --[[ Monetization ]]
 
 -- MarketplaceService.ProcessReceipt's receiptInfo, typed.

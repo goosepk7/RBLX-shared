@@ -155,3 +155,12 @@ are made in the games' asset threads with the same generator.
 - One primary action per panel: put it in `panel.footer`.
 - Never open a modal directly; `ScreenManager:showModal` enforces the cap of 2.
 - All strings arrive already localized; the kit never builds player-facing text.
+
+## Shared screens (v0.2)
+
+`Shared.Screens` builds the §5.5 screens from this kit: Shop, Rebirth, Codes, Leaderboards,
+Daily Rewards, Event lobby, badge toasts, the purchase prompt wrapper and the tutorial
+coachmarks. They follow the rules above (kit components only, strings from Loc, modals through
+`ScreenManager:showModal`). Each screen's content comes from a pure model in
+`Screens.Models`, tested under lune. Setup and the string conventions are in
+[API.md](API.md#screens).

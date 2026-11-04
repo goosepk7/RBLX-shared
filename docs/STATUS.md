@@ -1,6 +1,6 @@
 # RBLX-shared status
 
-**Phase:** 3, Shared v0.2 (v0.1 is merged and signed off)
+**Phase:** 3, Shared v0.2 (v0.1 is merged and signed off; Analytics, Strings, Audio, VFX, Settings and Admin merged; progression, monetization and their screens in review)
 **Version:** 0.2.0 in progress
 
 ## Owner to-do
@@ -46,6 +46,29 @@
 - [x] DataDiagnostics panel UI (the Admin panel's Data tab)
 - [x] Economy: currencies, earn/spend/grant/adjust with declared reasons, grouped multipliers (rebirth x pass x event x boost), play-time boosts saved in the wallet, fraction carry and balance caps, player attributes and leaderstats, ledger and per-reason totals, `bindStore` wiring to Data
 - [x] docs/API.md sections for AntiExploit, Data, Economy, Net, Signal, Types, UI (a pointer to UI.md), Util; every name in these sections checked against the code for v0.1
+
+## Progression and monetization, v0.2 (`shared/progression`)
+- [x] `Progression`: stages, attempts timed on the server (a game time is used only if shorter), records, awards, unlock gates with requirements and rebirth fast-track, daily featured stages, `progression.tooFast` strikes
+- [x] `Rebirth`: requirements, currency and gate resets, bonus curves (linear then diminishing, capped) applied as Economy multipliers, milestone rewards, preview for the confirm screen
+- [x] `Daily`: 7-day streak strip with reset hour, grace days and repeat
+- [x] `Shop`: passes (ownership cached, applied as multipliers), developer products (rewards, crates seeded by PurchaseId with displayed odds, custom grants), soft-currency items with levels and equip slots, featured rotation, PolicyService paid-random-items check (fails closed)
+- [x] `Codes`: config and runtime codes (Admin, no deploy), start/expiry, global use limits through UpdateAsync, one per player, wrong-guess lockout
+- [x] `Leaderboards`: max/min/set boards, all-time, daily and weekly, batched writes, cached top 100 with names, rank lookup
+- [x] `Badges`: award once, delivered to Roblox with retries, deferred while the badge id is 0
+- [x] `Events`: lobby events on clock-aligned slots and ambient events on random gaps, placements and per-player rewards, results phase
+- [x] `Tutorial` (server) and `Rewards` (one reward shape for every module)
+- [x] `Remotes`: Net namespaces and server handlers for every module (`module:bindNet()`), loopback-tested end to end
+- [x] `Screens`: Shop (Boosts, Cosmetics, Passes, featured card, crate odds), Rebirth (lose/keep, bonuses before and after, red confirm), Codes, Leaderboards (tabs, your rank pinned, wall board), Daily strip, Event lobby and HUD chip, badge toasts, purchase prompt wrapper, tutorial coachmarks
+- [x] Screen strings in en, pt-br and es (`Shared.Strings` areas shop, rebirth, codes, leaderboards, daily, events, badges, tutorial, rewards, time, errors; validated and checked for unused keys)
+- [x] docs/API.md sections for every v0.2 module above
+- Weak spot: the screens have not been seen in Studio. Everything they display comes from `Screens.Models`, which is tested; the layout, scrolling and the tutorial ring's positioning (absolute position divided by the UI scale) are written to the kit's rules but unverified on a device. First Studio session: open each screen from the gallery or a test place on a phone-sized viewport.
+- Analytics: Progression, Daily, Rebirth and Events report `analytics:progression` (stage ids become paths with `:` replaced by `.`), Tutorial reports `analytics:onboarding`, and Shop reports pass purchases as receipts; `tests/Progression/Analytics.spec.luau` runs them against the real Analytics module.
+- [ ] Admin commands for runtime codes (Codes already has `createAsync`, `disableAsync`, `listAsync`; the Admin panel doesn't call them yet)
+- Weak spot: Codes claims a global use before marking and paying. A player who leaves during that one UpdateAsync spends one use of a `maxUses` code (logged) but can still redeem it later.
+- Weak spot: every server redeeming a limited (`maxUses`) code updates the same DataStore key, so a popular limited code at launch will throttle and players see "unavailable". Use unlimited codes for launch, or shard the counter first.
+- Weak spot: Leaderboards read every board's top once per 120 s per server. With many boards and servers this approaches the OrderedDataStore read budget; keep boards per game under about 10, or raise `refreshInterval`.
+- Weak spot: OrderedDataStore, BadgeService, UserService and PolicyService run against fakes here; first Studio session: earn a badge with a real id, check a board fills, and check crates hide for a restricted test account.
+- Owner to-do for the games (not shared): create the game passes, developer products and badges in the dashboard and paste their ids. Anything with id 0 stays hidden (passes, products) or is delivered later (badges).
 
 ## Loc (early, for the game foundations)
 - [x] Loc: per-locale string tables, `{name}` placeholders with number formats, CLDR plurals for en/pt-BR/es, source fallback, `validate` for specs, Roblox localization CSV export

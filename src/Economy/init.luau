@@ -133,6 +133,9 @@ export type Economy = {
 	bindStore: (self: Economy, store: any) -> (),
 	isAttached: (self: Economy, who: any) -> boolean,
 	currency: (self: Economy, id: CurrencyId) -> Currency?,
+	-- The kind a reason was declared with, or nil if it isn't declared. Modules that pay with a
+	-- configured reason check it at startup.
+	reasonKind: (self: Economy, reason: string) -> ReasonKind?,
 
 	balance: (self: Economy, who: any, currency: CurrencyId) -> number,
 	lifetime: (self: Economy, who: any, currency: CurrencyId) -> number,
@@ -689,6 +692,11 @@ function Economy.new(options: Options): Economy
 
 	function economy.currency(_self: Economy, id: CurrencyId): Currency?
 		return currencies[id]
+	end
+
+	function economy.reasonKind(_self: Economy, reason: string): ReasonKind?
+		local spec = reasons[reason]
+		return if spec then spec.kind else nil
 	end
 
 	local function stateOf(who: any, currencyId: CurrencyId): Types.CurrencyState?
