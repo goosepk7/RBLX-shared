@@ -117,7 +117,7 @@ function SafeArea.new(props: Props?): SafeArea
 	local anchors = {} :: { [AnchorName]: Frame }
 	for _, anchorName in ANCHOR_NAMES do
 		local frame = Create.group({ Name = anchorName, Parent = hud.scaled })
-		local makeLayout = LAYOUTS[anchorName]
+		local makeLayout = (LAYOUTS :: any)[anchorName]
 		if makeLayout then
 			makeLayout().Parent = frame
 		end
