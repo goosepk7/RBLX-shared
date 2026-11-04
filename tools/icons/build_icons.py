@@ -329,6 +329,80 @@ def icon_warning() -> Icon:
     return i
 
 
+def mirror_x(d: str) -> str:
+    """An "M x y L x y ... Z" path flipped left to right on the 64 grid."""
+    out = []
+    for token in d.replace("M", "M ").replace("L", "L ").split():
+        out.append(token)
+    pts = []
+    k = 0
+    while k < len(out):
+        t = out[k]
+        if t in ("M", "L"):
+            pts.append((t, 64 - float(out[k + 1]), float(out[k + 2])))
+            k += 3
+        else:
+            k += 1
+    return " ".join(f"{c}{x:.2f} {y:.2f}" for c, x, y in pts) + " Z"
+
+
+REDO_ARROW = arc_arrow(30, 38, 17, 10, 160, 335)
+
+
+def icon_redo() -> Icon:
+    """A thick arrow arcing over the top to the right: redo."""
+    i = Icon("icon_redo")
+    i.part(f'<path d="{REDO_ARROW}"/>', INFO, (4, 12, 60, 50), highlight=True)
+    return i
+
+
+def icon_undo() -> Icon:
+    """The redo arrow flipped left to right (the highlight stays top-left)."""
+    i = Icon("icon_undo")
+    i.part(f'<path d="{mirror_x(REDO_ARROW)}"/>', INFO, (4, 12, 60, 50), highlight=True)
+    return i
+
+
+def icon_rotate() -> Icon:
+    """A circular arrow around a pivot dot: turn the selection a step."""
+    i = Icon("icon_rotate")
+    i.part(f'<path d="{arc_arrow(32, 33, 19, 9, -60, 225)}"/>', WARNING, (5, 6, 59, 61), highlight=True)
+    i.part('<circle cx="32" cy="33" r="5.5"/>', INK_SOFT, (26.5, 27.5, 37.5, 38.5), shaded=False)
+    return i
+
+
+def icon_trash() -> Icon:
+    """A lidded bin with slots: delete."""
+    i = Icon("icon_trash")
+    i.part('<path d="M25 13 V9 A3 3 0 0 1 28 6 H36 A3 3 0 0 1 39 9 V13 H35 V10 H29 V13 Z"/>', LINE_DARK, (25, 6, 39, 13), shaded=False)
+    i.part('<path d="M15 22 H49 L46 57 A3 3 0 0 1 43 59 H21 A3 3 0 0 1 18 57 Z"/>', DANGER, (15, 22, 49, 59), highlight=True)
+    for x in (25, 32, 39):
+        i.line(f"M{x} 29 V51", PAPER, 3.2, outlined=False)
+    i.part('<rect x="10" y="13" width="44" height="9" rx="3"/>', shade(DANGER, 0.1), (10, 13, 54, 22), shaded=False)
+    return i
+
+
+def icon_copy() -> Icon:
+    """Two sheets, one over the other: copy a code."""
+    i = Icon("icon_copy")
+    i.part('<rect x="9" y="6" width="32" height="38" rx="5"/>', LINE_DARK, (9, 6, 41, 44), shaded=False)
+    i.part('<rect x="22" y="19" width="33" height="39" rx="5"/>', PAPER, (22, 19, 55, 58), highlight=True)
+    for y in (29, 37, 45):
+        i.line(f"M29 {y} H{48 if y < 45 else 41}", INFO, 3, outlined=False)
+    return i
+
+
+def icon_edit() -> Icon:
+    """A pencil on a slant: rename, edit."""
+    i = Icon("icon_edit", "rotate(45 32 32)")
+    i.part('<path d="M27 4 H37 A3 3 0 0 1 40 7 V13 H24 V7 A3 3 0 0 1 27 4 Z"/>', DANGER, (24, 4, 40, 13), shaded=False)
+    i.part('<rect x="24" y="13" width="16" height="5"/>', LINE_DARK, (24, 13, 40, 18), shaded=False)
+    i.part('<rect x="24" y="18" width="16" height="28"/>', WARNING, (24, 18, 40, 46), highlight=True)
+    i.part('<path d="M24 46 H40 L32 60 Z"/>', PAPER2, (24, 46, 40, 60), shaded=False)
+    i.part('<path d="M29.4 55.5 H34.6 L32 60 Z"/>', INK, (29.4, 55.5, 34.6, 60), shaded=False, outline=False)
+    return i
+
+
 ICONS = [
     icon_wins,
     icon_height,
@@ -346,6 +420,12 @@ ICONS = [
     icon_lock,
     icon_check,
     icon_warning,
+    icon_undo,
+    icon_redo,
+    icon_rotate,
+    icon_trash,
+    icon_copy,
+    icon_edit,
 ]
 
 

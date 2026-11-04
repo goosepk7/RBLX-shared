@@ -770,6 +770,30 @@ services, `task` and enum values as constructor dependencies (see CONTRIBUTING.m
 
 ---
 
+## TextFilter
+
+Player-typed text that other players see goes through Roblox's filter before it is stored or
+shown (brief §3.4). Server only; `TextService` is used when a call is made, so requiring the
+module is free.
+
+| API | Notes |
+|---|---|
+| `TextFilter.clean(text, maxChars?)` | Run first. Drops invalid UTF-8, control and invisible characters (zero-width, direction marks, BOM), turns whitespace runs into one space, trims, and keeps at most `maxChars` characters (codepoints, not bytes). |
+| `TextFilter.new({ backend?, retries?, retryDelay?, cacheSeconds?, cacheSize?, wait?, now? })` | Default backend: `TextService:FilterStringAsync(text, userId, PublicChat):GetNonChatStringForBroadcastAsync()`, the strictest result, fit for names everyone sees. Defaults: 2 retries 0.5 s apart, results cached 300 s, at most 256 cached. Tests pass a `backend(text, userId) -> string` that may error. |
+| `filter:broadcast(text, fromUserId)` | `(filtered, nil)`, or `(nil, "unavailable")` when every try failed: it fails closed, so keep the old text or refuse the change and never store the raw input. `fromUserId` is whoever typed the text, or pasted a code carrying it. Compare the result with the cleaned input to see whether anything was replaced with `#`. Empty text returns `""` without a call. |
+
+```luau
+local filter = Shared.TextFilter.new()
+local name = Shared.TextFilter.clean(raw, 20)
+local filtered, failure = filter:broadcast(name, player.UserId)
+if filtered == nil then
+	return { ok = false, failure = "filterUnavailable" }
+elseif filtered ~= name then
+	return { ok = false, failure = "nameNotAllowed" }
+end
+
+---
+
 ## Tutorial
 
 The server side of the onboarding coachmarks (brief §5.5, §8): which step each player reached,
@@ -819,6 +843,7 @@ component and variant: [UI.md](UI.md).
 | `UI.SafeArea.new(props?)` | The root ScreenGui inside the safe insets, scaled to the viewport, with HUD `anchors` (no bottom-left: that is the thumbstick), `banners` and `toasts` lanes, and modal layers. |
 | `UI.ScreenManager.new(area)` | `register(name, factory)`, `push`, `pop`, `replace`, `showModal` (two at most), input mode and console focus, `setCinematic(on)`. |
 | `UI.Layout` | The pure geometry behind those: viewport scale, safe-zone and thumbstick rects, anchor rects, input-mode mapping, grid columns, drawer style. |
+| `UI.Gestures.new({ slop?, longPress? })` | Pure recognizer for 3D editors: feed `down/move/up(id, x, y, now)` per finger (or the mouse) and `update(now)` each frame; each call returns events: `tap`, `longPress`, `dragStart`/`drag`/`dragEnd`/`dragCancel` (one finger, `held` after a long press), `pinchStart`/`pinch`/`pinchEnd` (two fingers: `scale`, `rotation`, midpoint `dx`/`dy`). `cancel()` ends whatever is in progress. |
 
 `UI.Format.showCompact / showGrouped / showDelta` are what the kit displays; they follow the
 locale once `loc:bindKit()` has run. Also `UI.Color`, `Format`, `Create`, `Motion`, `Hooks` (sound and haptic events) and `Gallery`

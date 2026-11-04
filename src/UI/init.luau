@@ -12,6 +12,7 @@ return {
 	Create = require("@self/Create"),
 	Format = require("@self/Format"),
 	Gallery = require("@self/Gallery"),
+	Gestures = require("@self/Gestures"),
 	Hooks = require("@self/Hooks"),
 	Kit = require("@self/Kit"),
 	Layout = require("@self/Layout"),
