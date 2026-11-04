@@ -69,12 +69,13 @@ end
 
 -- ImageLabel showing the named asset (an Assets manifest name such as "icon_wins").
 -- While the asset is pending upload, Assets.applyImage overlays its placeholder card,
--- so a missing upload is visible instead of a blank square.
-function Common.icon(assetName: string, props: { [string]: any }): ImageLabel
+-- so a missing upload is visible instead of a blank square. Kit icons render at 64 px or
+-- less, so the "_64" thumbnail is used when the manifest has one.
+function Common.icon(assetName: string, props: { [string]: any }, size: number?): ImageLabel
 	local image = Create.new("ImageLabel", props) :: ImageLabel
 	image.BackgroundTransparency = 1
 	image.ScaleType = Enum.ScaleType.Fit
-	Assets.applyImage(image, assetName)
+	Assets.applyImage(image, assetName, size or 64)
 	return image
 end
 

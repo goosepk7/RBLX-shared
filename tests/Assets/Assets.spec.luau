@@ -107,12 +107,12 @@ T.describe("Assets", function()
 		local Color = require("@shared/UI/Color")
 		local Tokens = require("@shared/UI/Tokens")
 		local allowed: { [string]: boolean } = {}
-		for _, hex in Tokens.palette do
-			allowed[hex] = true
+		for _, hex in Tokens.palette :: any do
+			allowed[hex :: string] = true
 		end
 		for _, accent in Tokens.accents do
 			for _, hex in accent :: any do
-				allowed[hex] = true
+				allowed[hex :: string] = true
 			end
 		end
 		for _, name in { "icon_wins", "icon_cash", "sfx_win", "x", "y", "z" } do
