@@ -59,6 +59,7 @@ export type Loc = {
 	compact: (self: Loc, n: number) -> string,
 	grouped: (self: Loc, n: number) -> string,
 	onLocaleChanged: (self: Loc, fn: (locale: string) -> ()) -> () -> (),
+	bindKit: (self: Loc) -> () -> (),
 	_warned: { [string]: boolean },
 	_listeners: { (string) -> () },
 }
@@ -383,6 +384,35 @@ function Loc.toCsv(tables: Tables, source: string?): string
 	return table.concat(lines, "\n") .. "\n"
 end
 
+--[[
+	Merges string tables into one, for `Loc.new({ tables = Loc.merge(Shared.Strings, GameStrings) })`.
+	A key defined twice for the same locale is an error naming both sources' position, so a
+	game can't silently override a shared string (rename the key instead).
+]]
+function Loc.merge(...: Tables): Tables
+	local out: Tables = {}
+	local origin: { [string]: number } = {}
+	for index = 1, select("#", ...) do
+		local tables: Tables = select(index, ...)
+		for locale, entries in tables do
+			local target = out[locale]
+			if target == nil then
+				target = {}
+				out[locale] = target
+			end
+			for key, entry in entries do
+				local id = locale .. "\0" .. key
+				if origin[id] ~= nil then
+					error(`Loc.merge: "{key}" ({locale}) is defined in table {origin[id]} and table {index}`, 2)
+				end
+				origin[id] = index
+				target[key] = entry
+			end
+		end
+	end
+	return out
+end
+
 local Instance = {}
 Instance.__index = Instance
 
@@ -505,6 +535,17 @@ end
 
 function Instance.grouped(self: Loc, n: number): string
 	return Loc.grouped(n, self.locale)
+end
+
+--- Makes the UI kit's numbers (pills, stats, badges, number pops) use this Loc's current
+--- locale. Call once on the client after creating the game's Loc; returns an unbind function.
+function Instance.bindKit(self: Loc): () -> ()
+	Format.setLocalizer(function(text: string): string
+		return localize(text, self.locale)
+	end)
+	return function()
+		Format.setLocalizer(nil)
+	end
 end
 
 --- Calls `fn(locale)` after each change; returns a function that unsubscribes.

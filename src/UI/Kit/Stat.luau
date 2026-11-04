@@ -25,7 +25,7 @@ export type Props = {
 	Value: number,
 	Icon: string?,
 	Variant: Variant?,
-	Formatter: ((number) -> string)?, -- default Format.compact
+	Formatter: ((number) -> string)?, -- default Format.showCompact (localized)
 	Suffix: string?, -- e.g. " studs" (already localized)
 	Width: number?,
 }
@@ -40,7 +40,7 @@ local Stat = {}
 Stat.Variants = { "Default", "Accent", "Gold" } :: { Variant }
 
 function Stat.new(props: Props): (Frame, Handle)
-	local format = props.Formatter or Format.compact
+	local format = props.Formatter or Format.showCompact
 	local suffix = props.Suffix or ""
 	local value = props.Value
 	local variant: Variant = props.Variant or "Default"

@@ -160,3 +160,47 @@ T.describe("UI.Theme", function()
 		end
 	end)
 end)
+
+T.describe("UI.Theme colorblind palettes", function()
+	T.afterEach(function()
+		Theme.setPalette("off")
+	end)
+
+	T.it("override only status colors, with valid hex", function()
+		local status = {
+			success = true,
+			successEdge = true,
+			danger = true,
+			dangerEdge = true,
+			warning = true,
+			warningEdge = true,
+			info = true,
+			infoEdge = true,
+		}
+		for _, palette in Tokens.colorblind do
+			for name, hex in palette do
+				expect(status[name]).toBe(true)
+				expect(string.match(hex, "^#%x%x%x%x%x%x$") ~= nil).toBe(true)
+			end
+		end
+	end)
+
+	T.it("swap Theme.hex while set, and restore when off", function()
+		expect(Theme.hex("success")).toBe("#3DD68C")
+		Theme.setPalette("deuteranopia")
+		expect(Theme.getPalette()).toBe("deuteranopia")
+		expect(Theme.hex("success")).toBe("#3D8BFF")
+		expect(Theme.hex("primary", "stilts")).toBe("#FF7A1A")
+		Theme.setPalette("off")
+		expect(Theme.hex("success")).toBe("#3DD68C")
+	end)
+
+	T.it("keep success and danger far apart in every palette", function()
+		for _, palette in { "off", "deuteranopia", "protanopia", "tritanopia" } do
+			Theme.setPalette(palette :: any)
+			local s, d = Color.parse(Theme.hex("success")), Color.parse(Theme.hex("danger"))
+			local distance = math.abs(s.r - d.r) + math.abs(s.g - d.g) + math.abs(s.b - d.b)
+			expect(distance > 200).toBe(true)
+		end
+	end)
+end)

@@ -63,6 +63,33 @@ Tokens.accents = {
 
 Tokens.defaultGame = "stilts" :: GameId
 
+-- Colorblind palettes (Settings > Colorblind). Each overrides only the status colors whose
+-- meaning would be lost: red/green confusion moves Success to blue (and Info to cyan, so the
+-- two stay apart by lightness); blue/yellow confusion moves Info to magenta and Warning to
+-- orange. Icons and text carry meaning too; these are the second channel, not the only one.
+Tokens.colorblind = {
+	deuteranopia = {
+		success = "#3D8BFF",
+		successEdge = "#2160C0",
+		info = "#36C9DC",
+		infoEdge = "#1E8E9C",
+	},
+	protanopia = {
+		success = "#3D8BFF",
+		successEdge = "#2160C0",
+		info = "#36C9DC",
+		infoEdge = "#1E8E9C",
+		danger = "#FF4F8B", -- protans see red darker; a pinker red keeps it bright
+		dangerEdge = "#C22F64",
+	},
+	tritanopia = {
+		info = "#E05AA8",
+		infoEdge = "#A8357A",
+		warning = "#FF9A4C",
+		warningEdge = "#C96A22",
+	},
+} :: { [string]: { [string]: string } }
+
 -- Transparency values (Roblox convention: 0 = opaque, 1 = invisible).
 Tokens.alpha = {
 	shadow = 0.78, -- 22% shadow

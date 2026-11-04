@@ -49,7 +49,7 @@ local CurrencyPill = {}
 CurrencyPill.Variants = { "Default", "Gold", "Accent" } :: { Variant }
 
 function CurrencyPill.new(props: Props): (Frame, Handle)
-	local format = props.Formatter or Format.compact
+	local format = props.Formatter or Format.showCompact
 	local suffix = props.Suffix or ""
 	local value = props.Value
 	local variant: Variant = props.Variant or "Default"

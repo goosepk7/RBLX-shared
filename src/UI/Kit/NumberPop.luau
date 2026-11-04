@@ -59,7 +59,7 @@ function NumberPop.spawn(source: GuiObject, amount: number, opts: Options?): Tex
 
 	local label = Create.text({
 		Name = "NumberPop",
-		Text = o.Text or Format.delta(amount),
+		Text = o.Text or Format.showDelta(amount),
 		Role = "number",
 		SizeName = "h2",
 		Color = colors[1],

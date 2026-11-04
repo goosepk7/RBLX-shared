@@ -4,7 +4,75 @@
 as `Shared.<Module>`. Sections are added by the thread that owns the module; keep each one to
 the public surface, with one example.
 
-Version: 0.1.0 (semver; a breaking change bumps both games in the same change set).
+Version: 0.2.0 in progress (semver; a breaking change bumps both games in the same change set).
+
+---
+
+## Analytics
+
+Funnel and economy events for Roblox Analytics (brief §4), plus a ring buffer for the Admin
+panel. Server only; calls never yield. Events queue and a background loop sends them every 5 s
+within Roblox's budget (120 + 20 per player per minute). A full queue (1000) drops the oldest;
+send errors are counted in diagnostics and reported (first three, then every 100th).
+
+| API | Notes |
+|---|---|
+| `Analytics.new({ sink?, enabled?, field?, bufferSize?, queueLimit?, flushInterval?, budgetBase?, budgetPerPlayer?, transactionTypes?, players?, task?, now?, clock? })` | `sink(player, event)` defaults to `Analytics.RobloxSink.new()` (AnalyticsService). `enabled = false` keeps the ring buffer but sends nothing. `field` is the profile key, default `"analytics"`. |
+| `analytics:bindStore(store)` | Per profile: `join` (value = session number, field `new`), `session_length` (seconds, field `reason`) on release, and `purchase` (Robux spent, field `product`) plus `first_purchase` from `ReceiptGranted`, so a purchase is logged once even across a crash. Play time is written into the profile every flush and on leave. |
+| `analytics:bindEconomy(economy)` | `Transaction` entries become economy events: delta > 0 is a source, < 0 a sink, the reason is the item SKU. Transaction types: `purchase` IAP, `earn` Gameplay, `spend` Shop, `grant` Gameplay; `adjust` reasons (admin, rebirth) are skipped unless mapped in `transactionTypes`. |
+| `analytics:track(who, name, value?, fields?)` | A custom event. Names are 1-50 of `[%w_.-]`, so a typo can't open a new dashboard per stage. Up to 3 fields, sent in sorted key order as CustomField01..03. |
+| `analytics:first(who, milestone, fields?)` | `first_<milestone>` once per player ever, value = seconds played so far (time to first win). Returns whether it logged. `hasFirst` checks. |
+| `analytics:onboarding(who, step, stepName, fields?)` | Roblox's onboarding funnel; each step once per player, in increasing order (returns false otherwise). The tutorial calls it as steps complete. |
+| `analytics:progression(who, path, "start" \| "complete" \| "fail", level, levelName?, fields?)` | Stage attempts and fails. |
+| `analytics:funnel(who, funnel, step, stepName?, sessionId?, fields?)`, `analytics:economy(who, flow, currency, amount, balance, transactionType, sku?)` | The remaining AnalyticsService event kinds. |
+| `analytics:getState(who)`, `:playSeconds(who)` | `{ firstJoinAt, sessions, playSeconds, onboardingStep, purchases, robuxSpent, firsts }` from the profile. |
+| `analytics:getRecent(limit?, userId?)`, `:getDiagnostics()`, `analytics.Logged` | Newest first. Diagnostics: `enabled, queued, sent, failed, dropped, byKind, lastError, sessions, budgetPerMinute`. `Logged` fires per event. |
+| `analytics:flush()`, `:setEnabled(on)`, `:destroy()` | `flush` sends what the budget allows now (release already does). |
+
+```luau
+local analytics = Shared.Analytics.new()
+analytics:bindStore(Profiles)
+analytics:bindEconomy(economy)
+
+-- In the challenge system:
+analytics:progression(player, "World1", "start", challenge.index, challenge.id)
+if won then
+	analytics:progression(player, "World1", "complete", challenge.index, challenge.id)
+	analytics:first(player, "win")
+end
+```
+
+---
+
+## Admin
+
+Owner-only tools (brief §3.3, §5.5): chat commands, a data inspector, the AntiExploit flag log,
+the analytics feed, a sim launcher and an audit log. Everything runs on the server and checks the
+caller's UserId; a non-owner calling the admin remotes is dropped with an `admin.unauthorized`
+strike. Command replies are English (owner-only text, not localized).
+
+| API | Notes |
+|---|---|
+| `Admin.Server.new({ owners, allowStudio?, store?, economy?, analytics?, antiExploit?, sims?, teleport?, players?, context?, chatCommands?, now?, isStudio? })` | `owners` is a list of UserIds. Studio test sessions are allowed unless `allowStudio = false`. `chatCommands` (default on in Roblox) adds the `/admin` TextChatCommand: alone it opens the panel, with text it runs a command and replies in a toast. |
+| `admin:register({ name, description, args?, run })` | `args` is a list of `{ name, type, optional?, options? }` with type `player` (`me`, a UserId, an exact name or a unique prefix), `number`, `integer`, `string`, `currency`, `choice` or `rest`. `run(ctx, args)` returns `(ok, message?)`; errors are caught. |
+| `admin:run(caller, line)`, `admin:isOwner(player)` | Every line, allowed or not, goes into the audit log (last 100); `admin.CommandRan` fires per line. |
+| `admin:query(caller, view, arg?)`, `admin:getAudit(limit?)`, `admin:commands()` | Views (`Admin.VIEWS`): `players`, `inspect` (live profile, else the saved one), `diagnostics`, `flags`, `analytics`, `audit`, `commands`, `sims`. Results go through `Admin.snapshot` so they fit on the wire. |
+| `Admin.Client.new({ screens, loc, area?, remotes?, context?, name? })` | Registers the `"Admin"` screen (tabs Players, Data, Flags, Analytics, Sims, Console) and opens it when the server says so. Returns `{ open, destroy }`. |
+| `Admin.parse(line)`, `Admin.usage(command)`, `Admin.findPlayer(list, word, caller)`, `Admin.snapshot(value, maxDepth?, maxEntries?)`, `Admin.Panel.flatten(value, limit?)` | Pure helpers, tested under lune. |
+
+Built-in commands: `help`, `grant <player> <currency> <amount>` (negative takes; never below 0;
+reason `admin`), `reset <player> confirm` (erases the save and kicks), `kick <player> [reason]`,
+`tp <player> <target>` (the game's `teleport` hook, else to another player), `sim <name>` and
+`remote on|off` (the Net kill switch on this server).
+
+```luau
+local admin = Shared.Admin.Server.new({ owners = { 123456 }, store = Profiles, economy = economy, analytics = analytics })
+admin:register({
+    name = "flood", description = "Start the flood event",
+    args = { { name = "minutes", type = "integer", optional = true } },
+    run = function(ctx, args) Events.start("flood", args.minutes or 5) return true, "flood started" end,
+})
+```
 
 ---
 
@@ -59,6 +127,36 @@ local icon = Assets.image("icon_wins", { size = 64, props = { Size = UDim2.fromO
 
 Generated module: `tools/gen_asset_ids.luau` writes `AssetIds.luau` from `assets/manifest.json`
 (path per repo in `assets/config.json`). See [TOOLING.md](TOOLING.md) for the manifest format.
+
+---
+
+## Audio
+
+Client-side sound (brief §4, §5.7). Sounds are named definitions over manifest assets; each
+category ("music", "sfx", "ui", "ambient") is a SoundGroup at category x master volume.
+
+| API | Notes |
+|---|---|
+| `Audio.new({ parent?, sounds?, volumes?, createInstance?, task?, random?, assets?, fadeStep? })` | `parent` defaults to SoundService. `sounds` is merged over `Audio.DEFAULT_SOUNDS`. Default volumes: master 1, music 0.6, sfx 0.8, ui 0.8, ambient 0.7. |
+| `audio:define(name, { asset, category?, volume?, variants?, pitchJitter?, maxInstances?, looped? })` | `variants = n` plays `<asset>_1` .. `_n` at random, never the same one twice in a row. `maxInstances` (default 4) pooled copies may overlap; past that the oldest restarts. |
+| `audio:play(name, { volume?, pitch? }?)` | 2D, pooled. Returns the Sound, or nil while the asset is pending upload (counted as `silent`) or the name is unknown (warns once). |
+| `audio:playAt(name, partOrAttachment, options?)` | Positional one-shot parented to the target; destroys itself when it ends (10 s fallback). |
+| `audio:playMusic(name, { fade?, volume? }?)`, `:stopMusic(fade?)`, `:currentMusic()` | Crossfade between two decks (default 1.5 s). A music name with no definition plays that manifest asset, looped, at 0.5. The same track again is a no-op. |
+| `audio:setVolume(name, 0..1)`, `:getVolume(name)` | `name` is a category or `"master"`. Settings drives these. |
+| `audio:bindKit()` | Registers with `UI.Hooks`, so kit events play `ui.<sound>`. Returns an unbind function. |
+| `audio:getDiagnostics()`, `:destroy()` | `{ pools, instances, plays, silent, stolen, music, volumes }`. |
+
+Default definitions (assets from `tools/sfx_gen.py`): `ui.click` (4 variations), `ui.hover` (3),
+`ui.open`, `ui.close`, `ui.tab`, `ui.toast`, `ui.pop` (3), `ui.success`, `ui.fail`, `ui.thump`,
+and the feedback set `fx.purchase`, `fx.win`, `fx.checkpoint`, `fx.unlock`, `fx.fail`.
+
+```luau
+local audio = Shared.Audio.new()
+audio:bindKit()
+audio:define("stilts.footfall_wood", { asset = "sfx_stilts_wood", variants = 4, pitchJitter = 0.06 })
+audio:playAt("stilts.footfall_wood", foot)
+audio:playMusic("music_world1")
+```
 
 ---
 
@@ -197,11 +295,15 @@ falls back to the source locale. Pure; works under lune.
 | `loc:number(n)`, `:compact(n)`, `:grouped(n)`, `loc:has(key)` | Locale-aware wrappers over `UI.Format`. |
 | `Loc.normalize(localeId, available?)`, `Loc.pluralCategory(locale, n)`, `Loc.interpolate(text, args, locale?)`, `Loc.placeholders(text)` | The pure pieces. `Loc.SUPPORTED` is `{ "en", "pt-br", "es" }`. |
 | `Loc.validate(tables, source?)` | Issues `{ locale, key, kind, detail? }` with kind `missing`, `extra`, `placeholders`, `pluralForms`, `badEntry`. Games assert it is empty (or only `missing` while translations are pending) in a spec. |
+| `Loc.merge(...tables)` | One table set from several (`Shared.Strings` plus the game's). A key defined twice for a locale is an error naming both tables. |
+| `loc:bindKit()` | The kit's numbers (pills, stats, badges, number pops) follow this Loc's locale: `1.2K` in en, `1,2K` in pt-br and es. Returns an unbind function. |
+| `Shared.Strings` | The framework's own strings in en, pt-br and es, one module per area under `src/Strings/` with a key prefix per area (`common.`, `settings.`, `admin.`, ...). `tests/Loc/Strings.spec.luau` requires every locale complete. |
 | `Loc.toCsv(tables, source?)` | Roblox localization-table CSV (Key, Source, Context, Example, one column per locale) for importing into the experience's cloud table. |
 
 ```luau
-local loc = Shared.Loc.new({ tables = require(ReplicatedStorage.Stilts.Strings) })
+local loc = Shared.Loc.new({ tables = Shared.Loc.merge(Shared.Strings, require(ReplicatedStorage.Stilts.Strings)) })
 loc:setLocale(Players.LocalPlayer.LocaleId)
+loc:bindKit()
 title.Text = loc:t("win.title", { wins = 2 }) -- "+2 WINS"
 ```
 
@@ -294,6 +396,33 @@ end
 
 ---
 
+## Settings
+
+Per-player settings (brief §4, §5.5), saved in the profile under `settings`. The server owns the
+values and validates every change; the client applies a change the moment the player makes it
+and sends it once the value has been still for 0.4 s.
+
+| API | Notes |
+|---|---|
+| `Settings.DEFINITIONS`, `Settings.SECTIONS` | `musicVolume`, `sfxVolume`, `uiSounds` (audio); `cameraShake` (0 to 1 in quarters), `flashes`, `haptics` (comfort); `colorblind` (`off`, `deuteranopia`, `protanopia`, `tritanopia`); `controls` (games add options); `language` (`auto`, `en`, `pt-br`, `es`). |
+| `Settings.schema({ add?, override?, remove? })` | A game's schema: add its own definitions (section `game`), change defaults or options (`override = { controls = { options = { "auto", "tap", "hold" } } }`), or drop some. Returns `{ list, byId, ids, defaults, validate, normalize }`. |
+| `Settings.remotes(schema, { context? })` | Namespace `RBLXSettings`: `Set`, `Request` (client) and `Snapshot` (server). Server and client must build it from the same schema. |
+| `Settings.Server.new({ store, schema?, field?, remotes?, context?, players? })` | `get`, `getAll`, `set(player, id, value)` and `Changed(player, id, value)`. Sends a snapshot on load and on request; a refused value resends the snapshot so the client snaps back. |
+| `Settings.Client.new({ schema?, remotes?, audio?, vfx?, loc?, localeId?, appliers?, sendDelay? })` | `get`, `set`, `reset(section?)`, `flush`, `apply`, `isReady`, `Changed`, `Ready`. Applies built-ins to Audio (volumes, UI sounds), VFX (shake scale, flashes), `UI.Hooks` (haptics), `UI.Theme` (palette) and Loc (language); `appliers[id]` handles game settings. |
+| `Settings.Screen.register(screens, { client, loc, name? })`, `Settings.Screen.build(options)` | The Settings screen from the kit: a header per section, Toggle/Slider/cycle button per row, Restore defaults and Done. It rebuilds itself on a language or palette change. |
+
+```luau
+-- Server
+local schema = Shared.Settings.schema({ override = { controls = { options = { "auto", "tap", "hold" } } } })
+Shared.Settings.Server.new({ store = Profiles, schema = schema })
+-- Client
+local settings = Shared.Settings.Client.new({ schema = schema, audio = audio, vfx = vfx, loc = loc,
+    localeId = Players.LocalPlayer.LocaleId })
+Shared.Settings.Screen.register(screens, { client = settings, loc = loc })
+```
+
+---
+
 ## Signal
 
 A pure-Luau event with the same surface as `RBXScriptSignal`, usable under lune.
@@ -369,6 +498,7 @@ Test runner and fakes, for lune (CI) and Studio.
 | `T.Clock.new({ start? })` | Virtual time: `:now()` (unix s), `:clock()` (monotonic), `:advance(s)`, `:advanceTo(t)`, `:flush()`, `:pending()`, `.task` (`wait/spawn/defer/delay/cancel` emulating Roblox `task`), `:deps()` returns `{ now, clock, wait }`. |
 | `T.Fakes.DataStoreService.new()` | `GetDataStore`, `GetOrderedDataStore` (sorted pages), `GetRequestBudgetForRequestType`. Values deep-copied and checked as serializable; errors as `"502: ..."`. `UpdateAsync` reruns `transform` when the key changes between read and commit (like Roblox). Controls: `failNext(method, { code?, times?, key?, store? })`, `setFailureRate(p, seed?)`, `setBeforeCommit(fn({ store, scope, key, attempt }))` (write the key from another "server" here to force a session-lock race), `enableBudgets({ players?, initial?, burstMinutes? })` / `setBudget(n)` (budgets spend per request type, refill with `setNow` time, and throw `30x` throttle errors at 0; unlimited until enabled), `setNow`, `newSetOptions`, `inspect`, `seed` (bypasses budgets and hooks), `versionOf`, `calls`, `reset`. |
 | `T.Fakes.MarketplaceService.new()` | `ProcessReceipt` driving: `purchaseProduct(player, id, { purchaseId? })`, `replay(receipt)`, `retryPending()`, `pending()`; passes: `grantPass`, `revokePass`, `UserOwnsGamePassAsync`, `completeGamePassPrompt`, `failOwnershipChecks(n)`; `prompts()`, `grantedCount()`. Decision values in `.Decision`. |
+| `T.Fakes.Instances.new()` | `.create(className)` for modules with an injected `createInstance` (Audio, VFX). Fakes take any property and implement `Play/Stop/Pause/Resume`, `finish()` (fires `Ended`), `Emit`, `Destroy`, `GetChildren`, `FindFirstChild`, attributes and `Clone`; `:count(className, alive?)`, `:all(className)`. |
 | `T.Fakes.Players.new()` | `join(spec)` / `leave(player)` fire `PlayerAdded` / `PlayerRemoving`; fake players support `Kick` (removes from server), attributes with change signals. |
 | `T.Signal.new()` | Synchronous signal (`Connect`, `Once`, `Fire`, `DisconnectAll`). |
 
@@ -412,7 +542,8 @@ component and variant: [UI.md](UI.md).
 | `UI.ScreenManager.new(area)` | `register(name, factory)`, `push`, `pop`, `replace`, `showModal` (two at most), input mode and console focus, `setCinematic(on)`. |
 | `UI.Layout` | The pure geometry behind those: viewport scale, safe-zone and thumbstick rects, anchor rects, input-mode mapping, grid columns, drawer style. |
 
-Also `UI.Color`, `Format`, `Create`, `Motion`, `Hooks` (sound and haptic events) and `Gallery`
+`UI.Format.showCompact / showGrouped / showDelta` are what the kit displays; they follow the
+locale once `loc:bindKit()` has run. Also `UI.Color`, `Format`, `Create`, `Motion`, `Hooks` (sound and haptic events) and `Gallery`
 (the `/uigallery` chat command); see [UI.md](UI.md).
 
 ```luau
@@ -452,6 +583,30 @@ Helpers the framework uses, exposed for games. Anything not listed here may chan
 
 ```luau
 local template = Shared.Util.Deep.copy(Config.defaultData)
+```
+
+---
+
+## VFX
+
+Client-side effects (brief §4, §5.7). Particle colors are UI token names, so effects share the
+UI palette and the game's accent; textures are engine particle sprites (no upload).
+
+| API | Notes |
+|---|---|
+| `VFX.new({ createInstance?, camera?, runService?, playerGui?, terrain?, task?, tweenService?, shake?, maxHighlights? })` | `shake` is `{ maxAngle? 2.5, maxOffset? 0.35, decay? 1.6, frequency? 18 }`; the maxima are hard-capped at 4 degrees and 0.6 studs. |
+| `vfx:emit(preset, partOrAttachment, count?)`, `vfx:emitAt(preset, position, count?)` | Emitters are cached per target; `emitAt` uses a temporary attachment on Terrain. Presets: `sparkle`, `confetti`, `dust`, `splash`, `embers`, `burst`, `snow`, `stars`. |
+| `VFX.definePreset(name, preset)`, `VFX.Presets.validate(name, preset)` | Game presets, namespaced (`"car.mudSpray"`). A preset with several `colors` builds one emitter per color. |
+| `vfx:highlight(target, { color?, fill?, fillTransparency?, outlineTransparency?, duration?, alwaysOnTop?, fadeIn? })` | Returns `{ instance, remove(fade?) }`. At most 24 at once (Roblox renders 31); past that the oldest goes. |
+| `vfx:shake(trauma)`, `vfx:setShakeScale(0..1)` | Trauma model (`VFX.Shake`): offset scales with trauma squared and decays; applied after the camera each frame. Scale 0 (the player's setting) turns it off. |
+| `vfx:flash(color?, { peak?, duration? })`, `vfx:setFlashesEnabled(on)` | Full-screen fade, peak opacity at most 0.85. Players can turn flashes off. |
+| `VFX.Shake.new(options).step(dt)` | The pure model, for sims and tests. |
+
+```luau
+local vfx = Shared.VFX.new()
+vfx:emit("sparkle", character.HumanoidRootPart)
+vfx:shake(0.35)
+vfx:flash("white", { peak = 0.4 })
 ```
 
 ---

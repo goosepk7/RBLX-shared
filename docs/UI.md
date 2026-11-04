@@ -27,13 +27,13 @@ UI.Kit.CurrencyPill.new({
 | Module | What it is | Headless (lune) |
 |---|---|---|
 | `Tokens` | Every color, size, radius, edge, type size, motion timing, layer. The only place a color literal may appear. | yes |
-| `Theme` | Token accessors: `color(name)`, `hex`, `font(role)`, `textSize`, `variant(v)`, `setGame`, `onGameChanged`. | yes (pure parts) |
+| `Theme` | Token accessors: `color(name)`, `hex`, `font(role)`, `textSize`, `variant(v)`, `setGame`, `onGameChanged`, and the colorblind palettes: `setPalette("off" | "deuteranopia" | "protanopia" | "tritanopia")`, `getPalette`, `onPaletteChanged` (overrides from `Tokens.colorblind`; only the status colors change). | yes (pure parts) |
 | `Color` | Hex parsing, mixing, WCAG contrast. | yes |
 | `Layout` | Viewport scale, safe-zone rects, input-mode mapping, grid columns, drawer style. | yes |
-| `Format` | `compact` (1.2K), `grouped` (1,234), `delta` (+12), `isBigGain`. Loc (v0.2) will route through this. | yes |
+| `Format` | `compact` (1.2K), `grouped` (1,234), `delta` (+12), `isBigGain`. The kit shows numbers with `showCompact`/`showGrouped`/`showDelta`, which follow the locale after `loc:bindKit()` (1,2K in pt-br). | yes |
 | `Create` | Instance builder + styling primitives (`corner`, `stroke`, `textStroke`, `padding`, `list`, `text`). | no |
 | `Motion` | Tweens with the kit's easing vocabulary; `countUp` for animated numbers. | no |
-| `Hooks` | `sound(name)` and `haptic(kind)` events. Shared Audio (v0.2) calls `Hooks.setSoundHandler`. | yes |
+| `Hooks` | `sound(name)` and `haptic(kind)` events. Shared Audio's `bindKit` calls `Hooks.setSoundHandler`. | yes |
 | `SafeArea` | Root ScreenGui with `CoreUISafeInsets`, viewport `UIScale`, HUD anchors, banner and toast lanes. | no |
 | `ScreenManager` | One screen at a time, push/pop/replace, 2-modal cap, input mode, console focus, cinematic mode. | no |
 | `Kit` | Components (below). | `Variants` lists only |
@@ -66,6 +66,8 @@ placeholder card instead of a blank square. Constructors return `(root, handle)`
 | `Grid` | Scroll, Static | Auto-cell grid; columns follow width. |
 | `Tooltip` | Ink, Accent | `Tooltip.attach(target, text)`. |
 | `TextInput` | Default, Success, Danger | Single-line inset field, 48 px tall: Paper-2 at rest, Info border while focused, Success/Danger border plus a helper line (`setVariant(v, message)`) for results. `MaxLength` counts characters (default 64), `Transform` rewrites typed text (`string.upper` for codes), `OnSubmit` fires on Enter/Done unless Disabled or Loading. Typing again clears a stale result. |
+| `Toggle` | Primary, Success | Pill switch with the kit edge in a 52 x 48 hit box; off is Line-dark, on is the accent or Success, and the knob springs over with a click. `OnChanged(value)`; `setValue(v, silent)` for updates from outside. |
+| `Slider` | Primary, Secondary | 12 px two-tone track, 32 px knob, 48 px hit box across the whole width. Drag with touch or mouse; D-pad and arrow keys step it. `OnChanged` while moving, `OnCommitted` on release. `Slider.snap` and `Slider.valueAt` are the tested math. |
 | `Toast` | Success, Danger, Info, Warning, Gold, Badge | Lane under the banner lane, max 3 visible, auto-dismiss. Use `area.toasts.show`. |
 | `Banner` | Primary, Warning, Danger, Success, Info, Gold | Top-center strip, queued, slides in, auto-dismiss. Use `area.banners.show`. |
 | `NumberPop` | Gain, Loss, Gold | "+N" rises 56 px with jitter and a scale punch over 0.7 s; gains of 10% or more add confetti and "thump". |
@@ -107,8 +109,9 @@ floor is chosen so the smallest tappable control (48 px) never renders under
 ## Feedback hooks
 
 The kit raises `Hooks.sound("click" | "hover" | "open" | "close" | "success" |
-"fail" | "thump" | "pop" | "tab" | "toast")`. Until shared Audio lands (v0.2)
-nothing plays; Audio will register itself with `Hooks.setSoundHandler`.
+"fail" | "thump" | "pop" | "tab" | "toast")`. `audio:bindKit()` (shared Audio)
+registers with `Hooks.setSoundHandler` and plays `ui.<name>`, the generated set in
+`assets/sfx/`; without it the kit is silent.
 `Hooks.haptic("light" | "medium" | "heavy")` pulses gamepad and supported touch
 motors; Settings turns it off with `Hooks.setHapticsEnabled(false)`.
 

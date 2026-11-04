@@ -2,11 +2,26 @@
 --[[
 	Number formatting for UI surfaces (pills, stats, number pops).
 
-	Loc wraps these for locale separators (`loc:compact`, `loc:grouped`); the
-	kit itself formats with the English separators.
+	Loc wraps these for locale separators (`loc:compact`, `loc:grouped`). The
+	kit shows numbers through `Format.show*`, which pass the English text
+	through the localizer that `loc:bindKit()` installs, so pills, stats,
+	badges and number pops follow the player's language ("1,2K" in pt-br).
 ]]
 
 local Format = {}
+
+local localizer: ((string) -> string)? = nil
+
+--- Installs (or with nil removes) the function that turns Format's English
+--- separators into the active locale's. Loc's `bindKit` calls this.
+function Format.setLocalizer(fn: ((string) -> string)?)
+	localizer = fn
+end
+
+function Format.localize(text: string): string
+	local fn = localizer
+	return if fn then fn(text) else text
+end
 
 local SUFFIXES = { "K", "M", "B", "T", "Qa", "Qi" }
 
@@ -51,6 +66,19 @@ function Format.delta(n: number): string
 		return "+" .. Format.compact(n)
 	end
 	return Format.compact(n)
+end
+
+--- Kit display helpers: Format's text through the installed localizer.
+function Format.showCompact(n: number): string
+	return Format.localize(Format.compact(n))
+end
+
+function Format.showGrouped(n: number): string
+	return Format.localize(Format.grouped(n))
+end
+
+function Format.showDelta(n: number): string
+	return Format.localize(Format.delta(n))
 end
 
 --- True when a gain is "big" (>= ratio of the value before the gain).
