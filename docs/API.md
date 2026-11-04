@@ -8,6 +8,38 @@ Version: 0.2.0 in progress (semver; a breaking change bumps both games in the sa
 
 ---
 
+## Admin
+
+Owner-only tools (brief §3.3, §5.5): chat commands, a data inspector, the AntiExploit flag log,
+the analytics feed, a sim launcher and an audit log. Everything runs on the server and checks the
+caller's UserId; a non-owner calling the admin remotes is dropped with an `admin.unauthorized`
+strike. Command replies are English (owner-only text, not localized).
+
+| API | Notes |
+|---|---|
+| `Admin.Server.new({ owners, allowStudio?, store?, economy?, analytics?, antiExploit?, sims?, teleport?, players?, context?, chatCommands?, now?, isStudio? })` | `owners` is a list of UserIds. Studio test sessions are allowed unless `allowStudio = false`. `chatCommands` (default on in Roblox) adds the `/admin` TextChatCommand: alone it opens the panel, with text it runs a command and replies in a toast. |
+| `admin:register({ name, description, args?, run })` | `args` is a list of `{ name, type, optional?, options? }` with type `player` (`me`, a UserId, an exact name or a unique prefix), `number`, `integer`, `string`, `currency`, `choice` or `rest`. `run(ctx, args)` returns `(ok, message?)`; errors are caught. |
+| `admin:run(caller, line)`, `admin:isOwner(player)` | Every line, allowed or not, goes into the audit log (last 100); `admin.CommandRan` fires per line. |
+| `admin:query(caller, view, arg?)`, `admin:getAudit(limit?)`, `admin:commands()` | Views (`Admin.VIEWS`): `players`, `inspect` (live profile, else the saved one), `diagnostics`, `flags`, `analytics`, `audit`, `commands`, `sims`. Results go through `Admin.snapshot` so they fit on the wire. |
+| `Admin.Client.new({ screens, loc, area?, remotes?, context?, name? })` | Registers the `"Admin"` screen (tabs Players, Data, Flags, Analytics, Sims, Console) and opens it when the server says so. Returns `{ open, destroy }`. |
+| `Admin.parse(line)`, `Admin.usage(command)`, `Admin.findPlayer(list, word, caller)`, `Admin.snapshot(value, maxDepth?, maxEntries?)`, `Admin.Panel.flatten(value, limit?)` | Pure helpers, tested under lune. |
+
+Built-in commands: `help`, `grant <player> <currency> <amount>` (negative takes; never below 0;
+reason `admin`), `reset <player> confirm` (erases the save and kicks), `kick <player> [reason]`,
+`tp <player> <target>` (the game's `teleport` hook, else to another player), `sim <name>` and
+`remote on|off` (the Net kill switch on this server).
+
+```luau
+local admin = Shared.Admin.Server.new({ owners = { 123456 }, store = Profiles, economy = economy, analytics = analytics })
+admin:register({
+    name = "flood", description = "Start the flood event",
+    args = { { name = "minutes", type = "integer", optional = true } },
+    run = function(ctx, args) Events.start("flood", args.minutes or 5) return true, "flood started" end,
+})
+```
+
+---
+
 ## Analytics
 
 Funnel and economy events for Roblox Analytics (brief §4), plus a ring buffer for the Admin
@@ -40,38 +72,6 @@ if won then
 	analytics:progression(player, "World1", "complete", challenge.index, challenge.id)
 	analytics:first(player, "win")
 end
-```
-
----
-
-## Admin
-
-Owner-only tools (brief §3.3, §5.5): chat commands, a data inspector, the AntiExploit flag log,
-the analytics feed, a sim launcher and an audit log. Everything runs on the server and checks the
-caller's UserId; a non-owner calling the admin remotes is dropped with an `admin.unauthorized`
-strike. Command replies are English (owner-only text, not localized).
-
-| API | Notes |
-|---|---|
-| `Admin.Server.new({ owners, allowStudio?, store?, economy?, analytics?, antiExploit?, sims?, teleport?, players?, context?, chatCommands?, now?, isStudio? })` | `owners` is a list of UserIds. Studio test sessions are allowed unless `allowStudio = false`. `chatCommands` (default on in Roblox) adds the `/admin` TextChatCommand: alone it opens the panel, with text it runs a command and replies in a toast. |
-| `admin:register({ name, description, args?, run })` | `args` is a list of `{ name, type, optional?, options? }` with type `player` (`me`, a UserId, an exact name or a unique prefix), `number`, `integer`, `string`, `currency`, `choice` or `rest`. `run(ctx, args)` returns `(ok, message?)`; errors are caught. |
-| `admin:run(caller, line)`, `admin:isOwner(player)` | Every line, allowed or not, goes into the audit log (last 100); `admin.CommandRan` fires per line. |
-| `admin:query(caller, view, arg?)`, `admin:getAudit(limit?)`, `admin:commands()` | Views (`Admin.VIEWS`): `players`, `inspect` (live profile, else the saved one), `diagnostics`, `flags`, `analytics`, `audit`, `commands`, `sims`. Results go through `Admin.snapshot` so they fit on the wire. |
-| `Admin.Client.new({ screens, loc, area?, remotes?, context?, name? })` | Registers the `"Admin"` screen (tabs Players, Data, Flags, Analytics, Sims, Console) and opens it when the server says so. Returns `{ open, destroy }`. |
-| `Admin.parse(line)`, `Admin.usage(command)`, `Admin.findPlayer(list, word, caller)`, `Admin.snapshot(value, maxDepth?, maxEntries?)`, `Admin.Panel.flatten(value, limit?)` | Pure helpers, tested under lune. |
-
-Built-in commands: `help`, `grant <player> <currency> <amount>` (negative takes; never below 0;
-reason `admin`), `reset <player> confirm` (erases the save and kicks), `kick <player> [reason]`,
-`tp <player> <target>` (the game's `teleport` hook, else to another player), `sim <name>` and
-`remote on|off` (the Net kill switch on this server).
-
-```luau
-local admin = Shared.Admin.Server.new({ owners = { 123456 }, store = Profiles, economy = economy, analytics = analytics })
-admin:register({
-    name = "flood", description = "Start the flood event",
-    args = { { name = "minutes", type = "integer", optional = true } },
-    run = function(ctx, args) Events.start("flood", args.minutes or 5) return true, "flood started" end,
-})
 ```
 
 ---
@@ -157,6 +157,72 @@ audio:define("stilts.footfall_wood", { asset = "sfx_stilts_wood", variants = 4, 
 audio:playAt("stilts.footfall_wood", foot)
 audio:playMusic("music_world1")
 ```
+
+---
+
+## Badges
+
+Award-once badges with deferred Roblox delivery (brief §4, §5.5). Server only. Each player's
+state lives at `profile.data.badges` (`{ earned, awarded }`, key -> os.time()).
+
+| API | Notes |
+|---|---|
+| `Badges.new({ badges, field?, retries?, retryDelay?, badgeService?, players?, task?, now? })` | `badges` are `{ key, id, nameKey?, descriptionKey?, icon?, announce? }`. `id = 0` means not created on Roblox yet. |
+| `badges:bindStore(store)`, `:attach(who, data)`, `:detach(who)`, `:isAttached(who)` | Same contract as Economy. Attaching retries delivery of anything earned but not yet awarded. |
+| `badges:award(who, key)` | `true` only the first time. Fires `Earned`, then delivers in the background. |
+| `badges:has(who, key)`, `:badge(key)`, `:badges()`, `:deliverAsync(player)` | `deliverAsync` calls `AwardBadge` (3 tries), falling back to `UserHasBadgeAsync`; a badge whose id is still 0 waits for a later join. |
+| `badges.Earned`, `badges.Delivered` | `(player?, userId, def)`. |
+| `badges:bindNet(context?)` | Remotes `SharedBadges`: `Earned` to the player `{ key }`, `Announced` to everyone `{ key, userId, name }` when `announce` is set. |
+
+```luau
+local badges = Shared.Badges.new({ badges = { { key = "Rebirth1", id = 0, icon = "icon_rebirth", announce = true } } })
+badges:bindStore(Profiles)
+badges:bindNet()
+rebirth.Rebirthed:Connect(function(player, _, summary)
+	if summary.count == 1 then badges:award(player, "Rebirth1") end
+end)
+
+---
+
+## Codes
+
+Redeemable codes from config or added at runtime (Admin), with start/expiry, a global use
+limit, one redemption per player and wrong-guess lockout (brief §4, §11). Server only.
+Redemptions are saved at `profile.data.codes`.
+
+| API | Notes |
+|---|---|
+| `Codes.new({ economy, shop?, codes?, reason?, field?, storeName?, key?, refreshInterval?, missRefreshAge?, maxFailures?, failureWindow?, lockoutSeconds?, dataStoreService?, messagingService?, task?, now?, clock?, players? })` | `codes` are `{ code, reward, startsAt?, expiresAt?, maxUses?, requires?(who) -> (ok, failure?), disabled?, note? }`. Defaults: reason `"code"` (declare it as a grant), refresh 120 s, lockout after 8 wrong tries in 600 s for 300 s. `dataStoreService = false` turns runtime codes and use limits off. Invalid config throws. |
+| `codes:bindStore(store)`, `:attach`, `:detach`, `:isAttached` | As Economy. |
+| `codes:start()` | Loads runtime codes, refreshes on a timer and on a MessagingService ping (`RBLXShared.Codes`). |
+| `codes:redeemAsync(who, text)` | `(ok, failure?, Rewards.Applied?)`. Failures: `invalid`, `unknown`, `expired`, `redeemed`, `exhausted`, `requirements` (or the code's own reason), `tooManyAttempts`, `busy`, `unavailable`, `notLoaded`. Uses are claimed with `UpdateAsync` before the reward is paid. |
+| `codes:createAsync(def)`, `:disableAsync(code)`, `:listAsync()`, `:usesAsync(code)`, `:refreshAsync()` | The Admin panel's surface. Runtime codes can't reuse a config code. |
+| `codes:lookup(code)`, `:hasRedeemed(who, code)`, `Codes.normalize(text)`, `Codes.validate(def, target?)` | `normalize` trims and upper-cases; nil if not 3-24 of `[A-Z0-9_]`. |
+| `codes.Redeemed`, `codes:bindNet(context?)` | `(player?, userId, code, applied)`. Remotes `SharedCodes.Redeem(text)` (1/s, burst 3). |
+
+```luau
+local codes = Shared.Codes.new({ economy = economy, shop = shop, codes = Config.Codes })
+codes:bindStore(Profiles)
+codes:start()
+codes:bindNet()
+```
+
+---
+
+## Daily
+
+The login-streak strip (brief §5.5, §6.6): one claim per UTC day (shifted by `resetHourUtc`),
+consecutive days walk the strip, a missed day starts again at day 1. Server only; saved at
+`profile.data.daily`.
+
+| API | Notes |
+|---|---|
+| `Daily.new({ economy, shop?, days, reason?, field?, resetHourUtc?, graceDays?, repeatFrom?, analytics?, now?, players? })` | `days` is a list of `Types.Reward`. `reason` defaults to `"daily"`. After the last day the strip repeats from `repeatFrom` (1). |
+| `daily:status(who)` | `{ canClaim, day, streak, broken, nextAt, days }` or nil before load. |
+| `daily:claim(who)` | `(ok, failure?, Rewards.Applied?)`; failures `claimed`, `notLoaded`. Reports `analytics:progression(player, "daily", "complete", day)`. |
+| `Daily.position(streak, length, repeatFrom?)`, `daily:dayIndex(time?)` | The pure strip math. |
+| `daily.Claimed`, `daily.Attached` | `(player?, userId, day, applied)`; `(player?, userId, state)` when the profile loads. |
+| `daily:bindNet(context?)` | Remotes `SharedDaily`: `Status`, `Claim`, and `Available` (status) pushed on load when a claim is open. |
 
 ---
 
@@ -280,6 +346,45 @@ end
 
 ---
 
+## Events
+
+Server-wide timed events (brief §4, §6.4): `lobby` (opt-in, on a clock-aligned cadence, so all
+servers agree) or `ambient` (everyone, on a random gap, with a warning phase). Server only.
+
+| API | Notes |
+|---|---|
+| `Events.new({ events, mode?, every?, between?, lobbySeconds?, warningSeconds?, resultsSeconds?, rotation?, seed?, economy?, shop?, rewardReason?, analytics?, players?, task?, now? })` | `events` are `{ id, nameKey?, durationSeconds, minPlayers?, maxPlayers?, rewards?{ participation?, placements? }, reward?(player, outcome, place?), run?(ctx), weight? }`. Defaults: lobby 90 s, warning 10 s, results 8 s, sequence rotation, reason `"event"`. |
+| `events:start()`, `:stop()`, `:trigger(eventId?)` | `trigger` opens an event now when idle (`busy` otherwise). |
+| `events:state()` | `{ phase, eventId?, endsAt?, participants, minPlayers, maxPlayers?, placements?, nextEventId? }`. Phases: idle, lobby or warning, running, results. |
+| `events:join(player)`, `:leave(player)`, `:isParticipant(player)` | Lobby mode only. Failures `notOptIn`, `closed`, `full`, `notJoined`. |
+| `events:upcoming()`, `:event(id)`, `Events.sequencePick(defs, slot)`, `Events.randomPick(defs, slot, seed)` | The next event and when it opens; the deterministic pickers. |
+| `events.StateChanged`, `.Started`, `.Finished`, `.Membership` | `(state)`, `(eventId, participants)`, `(outcome)` with `{ id, participants, placements, rewards, data, cancelled }`, `(player, joined)`. |
+| `events:bindNet(context?)` | Remotes `SharedEvents`: `GetState`, `Join`, `Leave` (answers carry the state with `joined`), `State` (everyone), `Joined` (the player), `Finished` (everyone). |
+
+`run(ctx)` gets `{ id, def, participants, startedAt, endsAt, finish(result), isParticipant(player) }`;
+`finish({ placements = { userId, ... }, data? })`. A `run` that errors is logged and the event
+still ends.
+
+---
+
+## Leaderboards
+
+OrderedDataStore boards with batched writes, a cached top list, rank lookup, and daily or
+weekly boards (brief §4, §6.8, §7.8). Server only; reads and writes run in background threads.
+
+| API | Notes |
+|---|---|
+| `Leaderboards.new({ boards, prefix?, refreshInterval?, writeInterval?, dataStoreService?, userService?, players?, task?, now? })` | `boards` are `{ id, mode?, period?, scale?, value?(who), size?, nameKey?, icon?, format? }`. `mode` `"max"` (default), `"min"` (best times) or `"set"`; `period` `"all"`, `"daily"`, `"weekly"` (weeks start Monday 00:00 UTC); values stored as `round(value x scale)`; `size` up to 100. Writes every 60 s and on leave; tops refresh every 120 s. |
+| `boards:start()` | Loads joining players' stored values, flushes on leave, runs the write and refresh loops. |
+| `boards:submit(who, boardId, value)` | Kept only if better than what's known (`set` always replaces). Boards with `value` are sampled at each write instead. |
+| `boards:get(boardId)` | `{ id, entries = { { rank, userId, name, displayName, value } }, updatedAt, endsAt? }` from cache. |
+| `boards:rankOf(who, boardId)`, `:valueOf(who, boardId)`, `:storeName(boardId, time?)`, `:periodEndsAt(boardId, time?)` | `rankOf` is nil past the cached top. Store names: `LB_<id>`, plus `_D<day>` or `_W<week>`. |
+| `boards:flushAsync(who?)`, `:refreshAsync(boardId?)`, `:loadPlayerAsync(player)`, `:removeAsync(boardId, userId)` | Manual control (tests, Admin). A failed write stays queued. |
+| `Leaderboards.better(mode, a, b)`, `.period(period, time)`, `.encode(def, v)`, `.decode(def, n)` | The pure rules. |
+| `boards.Updated`, `boards:bindNet(context?)` | `(boardId, snapshot)` after a refresh. Remotes `SharedLeaderboards`: `Get(boardId)` answers `{ board, you = { rank, value } }`; `Updated(boardId)` to everyone. |
+
+---
+
 ## Loc
 
 Every player-facing string goes through Loc (brief §3.1). A game declares one string table per
@@ -396,6 +501,114 @@ end
 
 ---
 
+## Progression
+
+Stages, server-measured attempts, records, awards (stars or medals), unlock gates and daily
+featured stages (brief §4, §6.4, §6.6, §7.7). Server only; nothing yields. State lives at
+`profile.data.progression` (`{ records, unlocked, featured? }`). The module header has a full
+example.
+
+| API | Notes |
+|---|---|
+| `Progression.new({ stages, gates?, economy?, rewardReason?, rebirths?, featured?, strikes?, analytics?, field?, now?, clock?, players? })` | `stages` are `{ id, group?, order?, par?, minSeconds?, awards?, reward?, gate?, featured?, meta? }`; `reward` is `{ currency, amount, firstClearMultiplier?, speedBonus?, speedBonusAt?, awardBonus? }`. `gates` are `{ id, requires?{ lifetime?, awards?, clears?, gates? }, fastTrack?{ factor, rebirths? } }`. `rewardReason` defaults to `"stage"`. |
+| `progression:begin(who, stageId)`, `:finish(who, attemptId, { completed, flags?, awards?, durationSeconds? })`, `:abandon(who)`, `:current(who)` | Duration is measured between begin and finish; a game-reported `durationSeconds` is used only if shorter. A clear under `minSeconds` fails `implausible` and strikes `progression.tooFast`. |
+| `progression:submit(who, result)` | Records a result the game measured itself. Prefer begin/finish. |
+| Outcome | `{ result, record, firstClear, newBest, previousBest?, newAwards, rewards, payout, speedBonus, featured, unlocked }`. Failures: `notLoaded`, `unknownStage`, `locked`, `noAttempt`, `implausible`, `invalid`. |
+| `progression:record(who, stageId)`, `:count(who, { group?, award? }?)`, `:cleared(who, group?)` | `StageRecord` is `{ clears, attempts, bestTime?, awards, firstClearAt?, lastAt? }`. |
+| `progression:isUnlocked`, `:gateProgress(who, gateId)`, `:checkGates(who)`, `:unlock(who, gateId, reason)`, `:resetGates(who, keep?)` | `gateProgress` is `(0..1, parts)`, the least-complete requirement. Gates are rechecked on every Economy change. `fastTrack.factor` scales requirements after `rebirths` (1) rebirths. |
+| `progression:featured(who)`, `:isFeatured(who, stageId)` | Featured stages (default 3, x2 reward) rotate per period (24 h) from a seed, the same on every server. |
+| `Progression.speedBonus`, `.payout`, `.awardsFor`, `.newState`, `.repair` | The pure rules for sims. |
+| `progression.Started`, `.Finished`, `.Unlocked`, `.Changed` | `(player?, userId, attempt)`, `(player?, userId, outcome)`, `(player?, userId, gateId, reason)`, `(player?, userId)`. Sets the `Progression_Awards` attribute. Analytics: `sink:progression(player, stageId, status, attempt)`. |
+| `progression:bindNet(context?)` | Remotes `SharedProgression`: `GetState` (`{ records, unlocked, gates = { [id] = { unlocked, progress } }, featured, featuredEndsAt }`) and `State` on every change. |
+
+---
+
+## Rebirth
+
+Reset-with-bonus (brief §4, §6.6, §7.7): requirements, what resets, bonus curves applied as
+Economy multipliers, milestone rewards, and a preview for the confirm screen. Server only;
+saved at `profile.data.rebirth` (`{ count, lastAt? }`).
+
+| API | Notes |
+|---|---|
+| `Rebirth.new({ economy, progression?, shop?, requires?, resets?, bonuses?, milestones?, rewardReason?, maxRebirths?, onRebirth?, analytics?, now?, players?, task? })` | `requires` `{ lifetime?{ currency, amount }, gates?, awards?, custom? }`; `resets` `{ currencies?, gates?{ keep? } }`; `bonuses` name -> curve `{ perRebirth, linearUntil?, decay?, max?, currencies?, reasons? }`; `milestones` count -> `Types.Reward` (reason `"rebirthReward"`). |
+| Curve | `perRebirth` per rebirth up to `linearUntil`, then each further one adds `decay` times the last, capped at `max`; factor = 1 + bonus. 0.25 / 10 / 0.85 gives 3.5x at 10, 3.71x at 11, limit 4.92x. A curve with `currencies` or `reasons` becomes multiplier `rebirth.<name>` in group `rebirth`. |
+| `rebirth:count(who)`, `:factor(who, name, count?)`, `:progress(who)`, `:canRebirth(who)` | `progress` is `(0..1, parts)` with parts `{ kind, have, need, currency? }`. |
+| `rebirth:preview(who)` | `{ count, progress, parts, canRebirth, failure?, bonuses = { [name] = { before, after } }, resetsCurrencies, resetsGates, keepsGates, milestone? }`. |
+| `rebirth:perform(who, { force?, reason? }?)` | `(ok, failure?, summary?)`. Resets currencies with `economy:set(..., "rebirth", { lifetime = 0 })`, relocks gates, pays the milestone, calls `onRebirth(who, count, data)`, saves. Failures `notLoaded`, `requirements`, `maxed`. Summary `{ count, reason, bonuses, reset, milestone? }`. |
+| `Rebirth.bonus(curve, n)`, `Rebirth.factor(curve, n)` | The pure curve. |
+| `rebirth.Rebirthed`, `rebirth:bindNet(context?)` | `(player?, userId, summary)`. Sets the `Rebirths` attribute. Remotes `SharedRebirth`: `Preview`, `Rebirth` (answers `{ ok, failure?, summary? }`), `Rebirthed` to everyone `{ userId, name, count }`. |
+
+---
+
+## Remotes
+
+The Net definitions for the v0.2 modules, one namespace each (`SharedProgression`,
+`SharedRebirth`, `SharedDaily`, `SharedShop`, `SharedCodes`, `SharedLeaderboards`,
+`SharedBadges`, `SharedEvents`, `SharedTutorial`), so server and client always agree. Requests
+are validated (ids are `[%w_:.-]`, 1-64 chars) and rate limited; answers are plain tables
+(`{ ok, failure?, ... }` for actions). Nothing a client sends decides an outcome.
+
+| API | Notes |
+|---|---|
+| `module:bindNet(context?)` | Server, once per module at startup. Same as `Remotes.serve(name, module, context?)`. |
+| `Remotes.client(name, context?)` | Client: the module's remotes, bound once per context and cached. The shared screens use this. |
+| `Remotes.bind(name, context?)`, `Remotes.NAMESPACES`, `Remotes.shop()` (one factory per module) | Fresh definitions, for custom wiring and tests. |
+
+```luau
+-- Server
+shop:bindNet()
+-- Client
+local shopRemotes = Shared.Remotes.client("Shop")
+local answer = shopRemotes.Buy:invokeAsync("skin_neon") -- { ok = true, value = { ok = false, failure = "insufficient" } }
+
+---
+
+## Rewards
+
+One shape (`Types.Reward`: `{ currencies?, items?, boosts?, ifOwned? }`) applied the same way by
+Codes, Daily, Events and milestones.
+
+| API | Notes |
+|---|---|
+| `Rewards.apply({ economy, shop? }, who, reward, reason)` | `Applied` `{ ok, failure?, currencies, items, duplicates, boosts }`. Currencies go through `economy:earn` with `reason` (its kind decides multiplied or exact); an owned item pays `ifOwned` instead. |
+| `Rewards.validate(reward, target?)` | A list of problems (unknown currency or item, missing shop); empty when fine. Modules validate their config at `new`. |
+| `Rewards.isEmpty`, `Rewards.entries(reward)`, `Rewards.merge(a, b)` | Helpers for UI lines and combined payouts. |
+
+---
+
+## Screens
+
+The shared screens from brief §5.5, built from the UI kit and driven by Remotes. Client only.
+What each screen shows is decided by `Screens.Models` (pure and tested); the builders only lay
+it out. Their strings are in `Shared.Strings` (areas `shop`, `rebirth`, `codes`, `leaderboards`,
+`daily`, `events`, `badges`, `tutorial`, `rewards`, `time`, `errors`, plus `common`).
+
+| API | Notes |
+|---|---|
+| Content strings | The game's tables name its content: `currency.<Id>`, `item.<id>`, `pass.<key>`, `product.<key>`, `board.<id>`, `event.<id>`, `badge.<key>` (and `.description`), `boost.<id>`, `bonus.<name>` (rebirth bonuses), `fail.<reason>` (a game's own refusal reasons), or a def's `nameKey`. Tutorial step text uses the game's own keys. |
+| `Screens.install({ loc, manager, area, catalog?, boards?, events?, badges?, balances?, context?, userId?, now?, autoOpenDaily?, toasts? })` | Registers `Shop`, `Rebirth`, `Codes`, `Leaderboards`, `Daily`, `EventLobby` on the ScreenManager and wires badge toasts, the rebirth banner, purchase confirmations and auto-opening Daily. Returns the `Env` the helpers below take. `catalog` is `{ items, passes, products, currencyIcons }` from the same config the server used. |
+| `manager:push("Shop", { tab = "boosts" \| "cosmetics" \| "passes" })`, `push("Leaderboards", { board = id })` | Boosts = developer products (crates show odds) plus items in category `Boosts`; Cosmetics = other items; Passes = game passes. Ids of 0 are hidden. |
+| `Screens.Purchase.request(env, "product" \| "pass", key)` | The prompt wrapper every Robux purchase goes through. Crates show their odds first. Failures become toasts; the success toast follows `Shop.Confirmed`. |
+| `Screens.Tutorial.start(env, steps, onFinished?)` | Coachmarks: `steps` `{ id, textKey, target?() -> GuiObject?, waits? }`, same ids and order as the server's `Tutorial`. Returns `{ complete(stepId), current(), stop() }`. Resumes where the server says; never shows again once done. |
+| `Screens.EventLobby.chip(env, parent, maxWidth?)` | The HUD countdown chip; tap opens the lobby. Returns a remover. |
+| `Screens.Leaderboards.surface(env, part, boardId)` | A board on a SurfaceGui (lobby wall). Returns a remover. |
+| `Screens.Models.*` | `shop`, `rebirth`, `daily`, `leaderboard`, `event`, `codeResult`, `badgeToast`, `purchaseConfirmed`, `tutorialStep`, plus `duration`, `percent`, `decimal`, `rewardLines`, `failure`, `answer`. |
+
+```luau
+local loc = Shared.Loc.new({ tables = Shared.Loc.merge(Shared.Strings, require(Strings)) })
+local area = Shared.UI.SafeArea.new()
+local screens = Shared.UI.ScreenManager.new(area)
+local env = Shared.Screens.install({
+	loc = loc, manager = screens, area = area,
+	catalog = { items = Config.Items, passes = Config.Passes, products = Config.Products, currencyIcons = { Wins = "icon_wins" } },
+	boards = Config.Boards,
+})
+Shared.Screens.EventLobby.chip(env, area.anchors.BottomCenter)
+```
+
+---
+
 ## Settings
 
 Per-player settings (brief §4, §5.5), saved in the profile under `settings`. The server owns the
@@ -420,6 +633,26 @@ local settings = Shared.Settings.Client.new({ schema = schema, audio = audio, vf
     localeId = Players.LocalPlayer.LocaleId })
 Shared.Settings.Screen.register(screens, { client = settings, loc = loc })
 ```
+
+---
+
+## Shop
+
+Game passes, developer products (rewards, crates, custom grants) and the soft-currency catalog
+with equip slots (brief §4, §6.7, §7.9). Server only. State lives at `profile.data.shop`
+(`{ owned, equipped, passes, robuxSpent, purchases }`). The module header has a full example.
+
+| API | Notes |
+|---|---|
+| `Shop.new({ economy, passes?, products?, items?, categories?, featured?, field?, spendReason?, purchaseReason?, autoEquip?, analytics?, marketplace?, policy?, players?, task?, now?, ownershipRetries?, ownershipRetryDelay? })` | Passes `{ key, id, price, nameKey?, descriptionKey?, icon?, multipliers?, onOwned? }`. Products `{ key, id, price, ..., reward \| crate \| grant(ctx), canPurchase?, random? }` (exactly one of reward, crate, grant). Items `{ id, category, slot?, price? \| levels?, available?, nameKey?, icon?, featured?, rarity?, default?, order? }`. Reasons default `"shop"` (spend) and `"purchase"` (grant). |
+| `shop:bindStore(store, { processReceipt? })` | Attaches profiles and, unless `processReceipt = false`, sets `MarketplaceService.ProcessReceipt` (idempotent through Data; unknown product ids stay `NotProcessedYet` and log an error). |
+| `shop:buy(who, itemId)`, `:equip(who, itemId)`, `:unequip(who, slot)`, `:grantItem(who, itemId, reason)`, `:revokeItem(who, itemId)` | Failures: `notLoaded`, `unknown`, `notForSale`, `owned`, `maxed`, `unavailable` (or the item's own reason), `insufficient`, `notEquippable`, `notOwned`. |
+| `shop:prompt(player, "product" \| "pass", key)`, `:canPurchase(who, productKey)` | Refuses `notCreated` (id 0), `restricted` (paid random items not allowed: PolicyService, restricted until known), or the product's own `canPurchase` reason. |
+| `shop:processReceipt(receipt)`, `:odds(productKey)`, `Shop.oddsOf(crate)`, `Shop.rollCrate(crate, draw)` | Crates roll from the PurchaseId, so a retried receipt rolls the same item; owned results pay `ifOwned`. |
+| `shop:hasItem`, `:level`, `:priceOf`, `:equipped(who, slot)`, `:ownsPass`, `:refreshPassesAsync(player)`, `:featured(time?)`, `:randomItemsAllowed(who)` | Featured picks (default 3 every 6 h) are the same on every server. Pass ownership is checked on load (3 tries) and cached in the profile. |
+| `shop:snapshot(who)` | `{ owned, equipped, passes, blocked, unavailable, featured, featuredEndsAt, randomItemsAllowed }` for the screen. |
+| `shop.Purchased`, `.ItemGranted`, `.Equipped`, `.PassOwned`, `.Confirmed`, `.Changed` | `Confirmed(player?, userId, kind, key, details)` fires after the grant is saved. Attributes `Pass_<key>` and `Equipped_<slot>`. |
+| `shop:bindNet(context?)` | Remotes `SharedShop`: `GetState`, `Buy(itemId)`, `Equip(itemId)`, `Unequip(slot)`, `Prompt({ kind, key })`, `State` and `Confirmed` to the player. |
 
 ---
 
@@ -508,6 +741,20 @@ services, `task` and enum values as constructor dependencies (see CONTRIBUTING.m
 
 ---
 
+## Tutorial
+
+The server side of the onboarding coachmarks (brief §5.5, §8): which step each player reached,
+saved at `profile.data.tutorial`, and every first-time step sent to analytics for the funnel.
+
+| API | Notes |
+|---|---|
+| `Tutorial.new({ steps, analytics?, field?, now?, players? })` | `steps` is the ordered list of step ids. |
+| `tutorial:complete(who, stepId)` | Completes the step and every one before it; each is reported once ever as `analytics:onboarding(player, index, stepId)`. `(ok, failure?)`: `unknown`, `notLoaded`. |
+| `tutorial:skip(who)`, `:reset(who)`, `:status(who)`, `:steps()` | A skip reports nothing more (it shows as drop-off). `status` is `{ step, total, done, skipped, next? }`. A reset never re-reports. |
+| `tutorial.Advanced`, `tutorial.Finished`, `tutorial:bindNet(context?)` | `(player?, userId, index, stepId)`, `(player?, userId, skipped)`. Remotes `SharedTutorial`: `GetState`, `Step(stepId)`, `Skip`. |
+
+---
+
 ## Types
 
 Shared Luau types, defined once in `src/Types/init.luau` (fields are documented there). Requiring
@@ -518,7 +765,9 @@ the module costs nothing. Changing a field is a breaking change.
 | `UserId`, `CurrencyId` | Everything |
 | `Currency`, `CurrencyState`, `BoostState`, `Wallet`, `MultiplierSpec`, `LedgerEntry` | Economy; the wallet lives at `profile.data.wallet` |
 | `SessionLock`, `ReceiptRecord`, `ProfileMeta`, `PlayerProfile<T>` | Data |
-| `StageResult` | Produced by game systems; consumed by Progression and Leaderboards (v0.2) |
+| `StageResult` | Produced by game systems; consumed by Progression and Leaderboards |
+| `StageRecord` | Progression's per-stage record (clears, attempts, best time, awards) |
+| `Reward`, `BoostReward` | Rewards: Codes, Daily, Events, Rebirth milestones, crate fallbacks |
 | `PurchaseReceipt` | `ProcessReceipt`'s `receiptInfo`, typed |
 | `AssetKind`, `AssetStatus`, `AssetRef` | Assets |
 
