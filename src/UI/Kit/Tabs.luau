@@ -112,7 +112,7 @@ function Tabs.new(props: Props): (Frame, Handle)
 			AutoButtonColor = false,
 			Text = "",
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1 / count, 0, 1, 0),
+			Size = UDim2.fromScale(1 / count, 1),
 			Position = UDim2.fromScale((i - 1) / count, 0),
 			ZIndex = 3,
 			Parent = root,

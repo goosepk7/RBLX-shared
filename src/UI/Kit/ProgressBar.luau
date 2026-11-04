@@ -87,7 +87,7 @@ function ProgressBar.new(props: Props): (Frame, Handle)
 		BackgroundColor3 = Theme.color("white"),
 		BackgroundTransparency = Tokens.alpha.highlight - 0.2,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0, 6, 0, 2),
+		Position = UDim2.fromOffset(6, 2),
 		Size = UDim2.new(1, -12, 0.22, 0),
 		ZIndex = 4,
 		Parent = fill,

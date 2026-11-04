@@ -66,7 +66,7 @@ function Tooltip.new(props: Props): (Frame, TextLabel)
 		BorderSizePixel = 0,
 		Size = UDim2.fromOffset(10, 10),
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 1, 0),
+		Position = UDim2.fromScale(0.5, 1),
 		Rotation = 45,
 		ZIndex = 20,
 		Parent = bubble,

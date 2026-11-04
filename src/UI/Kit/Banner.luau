@@ -101,7 +101,7 @@ function Banner.build(props: Props): Frame
 		Stroke = if light then nil else c[2],
 		StrokeThickness = 2,
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.fromScale(0, 1),
 		LayoutOrder = 2,
 		ZIndex = 3,
 		Parent = face,
@@ -134,7 +134,7 @@ function Banner.lane(parent: Instance): Lane
 		strip.Position = UDim2.new(0.5, 0, 0, -(Banner.HEIGHT + 24))
 		strip.Parent = root
 		Hooks.sound("open")
-		Motion.enter(strip, { Position = UDim2.new(0.5, 0, 0, 0) })
+		Motion.enter(strip, { Position = UDim2.fromScale(0.5, 0) })
 		task.delay(props.Duration or Tokens.motion.bannerHold, function()
 			if strip.Parent == nil then
 				nextBanner()

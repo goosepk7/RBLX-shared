@@ -113,7 +113,7 @@ function Chip.new(props: Props): (Frame, Handle)
 		Stroke = colors.textStroke,
 		StrokeThickness = 1,
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.fromScale(0, 1),
 		LayoutOrder = 2,
 		ZIndex = 3,
 		Parent = row,

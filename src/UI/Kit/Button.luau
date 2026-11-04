@@ -93,7 +93,7 @@ function Button.new(props: Props): (Frame, Handle)
 		StrokeThickness = 1.5,
 		XAlign = "Center",
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.fromScale(0, 1),
 		LayoutOrder = 2,
 		ZIndex = 3,
 		Parent = content,

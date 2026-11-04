@@ -107,7 +107,7 @@ function Drawer.new(props: Props): Handle
 		return if style == "Sheet" then UDim2.fromScale(0, 1) else UDim2.fromScale(1, 0)
 	end
 	local function hiddenPos(): UDim2
-		return if style == "Sheet" then UDim2.new(0, 0, 2, 0) else UDim2.new(2, 0, 0, 0)
+		return if style == "Sheet" then UDim2.fromScale(0, 2) else UDim2.fromScale(2, 0)
 	end
 
 	local function layout(parent: Instance)

@@ -88,7 +88,7 @@ function Panel.new(props: Props): (Frame, Handle)
 		BackgroundColor3 = Theme.color(header[2]),
 		BorderSizePixel = 0,
 		Size = UDim2.new(1, 0, 0, Tokens.radius.card),
-		Position = UDim2.new(0, 0, 0, headerH - Tokens.radius.card),
+		Position = UDim2.fromOffset(0, headerH - Tokens.radius.card),
 		ZIndex = 2,
 		Parent = ef.face,
 	})
@@ -123,7 +123,7 @@ function Panel.new(props: Props): (Frame, Handle)
 		Stroke = if lightHeader then nil else header[2],
 		StrokeThickness = 2,
 		AutomaticSize = Enum.AutomaticSize.X,
-		Size = UDim2.new(0, 0, 1, 0),
+		Size = UDim2.fromScale(0, 1),
 		ZIndex = 4,
 		Parent = titleRow,
 	})

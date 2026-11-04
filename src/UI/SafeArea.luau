@@ -88,7 +88,7 @@ function SafeArea.new(props: Props?): SafeArea
 	local anchors: { [AnchorName]: Frame } = {
 		TopLeft = anchor("TopLeft", {
 			Position = UDim2.fromOffset(0, Tokens.space.sm),
-			Size = UDim2.new(0.3, 0, 0.5, 0),
+			Size = UDim2.fromScale(0.3, 0.5),
 		}, Create.list("Vertical", Tokens.space.sm, "Left", "Top")),
 		TopCenter = anchor("TopCenter", {
 			AnchorPoint = Vector2.new(0.5, 0),
