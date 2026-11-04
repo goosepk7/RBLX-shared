@@ -3,7 +3,7 @@
 	Button (§5.3). Variants: Primary, Secondary, Success, Danger, Gold, Ghost.
 
 		local root, handle = Kit.Button.new({
-			Text = Loc.t("shop.buy"), Variant = "Primary", Icon = Assets.get("icon_wins"),
+			Text = Loc.t("shop.buy"), Variant = "Primary", Icon = "icon_wins",
 			OnActivated = function() ... end,
 		})
 		handle.setLoading(true)
@@ -28,7 +28,7 @@ export type Props = {
 	Text: string,
 	Variant: Variant?,
 	Size: Size?,
-	Icon: string?, -- image content id (from Assets.get), shown left of the text
+	Icon: string?, -- asset name ("icon_wins"), shown left of the text
 	Width: number?, -- px at reference scale; ignored when Fill is true
 	Fill: boolean?, -- stretch to parent width
 	OnActivated: (() -> ())?,
@@ -78,10 +78,8 @@ function Button.new(props: Props): (Frame, Handle)
 	})
 
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
 			Size = UDim2.fromOffset(Tokens.size.iconMd, Tokens.size.iconMd),
 			ScaleType = Enum.ScaleType.Fit,
 			LayoutOrder = 1,

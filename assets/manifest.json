@@ -1,4 +1,325 @@
 {
-  "assets": [],
+  "assets": [
+    {
+      "name": "icon_cash",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_cash.png",
+      "sourceFile": "assets/icons/svg/icon_cash.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "bb162293b2c7d3ac4d206ea54f387bf9626dd0576ea475f85d1867d7cbd95534"
+    },
+    {
+      "name": "icon_cash_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_cash.png",
+      "sourceFile": "assets/icons/svg/icon_cash.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "200111d18b9ccc2009e2892ad74fd272afeb1c4b3f4d58b3537e98ad145ae254"
+    },
+    {
+      "name": "icon_check",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_check.png",
+      "sourceFile": "assets/icons/svg/icon_check.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "ea5888bdd0f586b9f46fa8578a3172ab893f96a1d9e0086b8e9e3665593d9c6e"
+    },
+    {
+      "name": "icon_check_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_check.png",
+      "sourceFile": "assets/icons/svg/icon_check.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "93a248d2545ca0dd61f792bf0178115faf6b4a512aa95e8cb193a09039e514b3"
+    },
+    {
+      "name": "icon_codes",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_codes.png",
+      "sourceFile": "assets/icons/svg/icon_codes.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "a08086afc9383ae25258db0b13380d1532876f2358cf86778dbce295db18c8e8"
+    },
+    {
+      "name": "icon_codes_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_codes.png",
+      "sourceFile": "assets/icons/svg/icon_codes.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "a9c2db266b8672cc7bd92b6e90b7b37cc61e1633e6c3d0f78f982eb2d0f4171d"
+    },
+    {
+      "name": "icon_event",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_event.png",
+      "sourceFile": "assets/icons/svg/icon_event.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "9a7b87e46f8756dcb4cc115348ba41a80803cc31a0807095eedb5115c9ccf4f5"
+    },
+    {
+      "name": "icon_event_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_event.png",
+      "sourceFile": "assets/icons/svg/icon_event.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "688e766fe61cc783ec55c5e34d0d0dc819b6c91f58b44de31317167b8a7ab6b0"
+    },
+    {
+      "name": "icon_height",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_height.png",
+      "sourceFile": "assets/icons/svg/icon_height.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "dfcdacaf4dc1950e5eff998b6c78b5fe990b51cc340c36f28f89b0dfa2991152"
+    },
+    {
+      "name": "icon_height_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_height.png",
+      "sourceFile": "assets/icons/svg/icon_height.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "bed997b3158ceba74c8b8066ac07f194ef3770ae5b6ba98353202ad712b7db54"
+    },
+    {
+      "name": "icon_leaderboard",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_leaderboard.png",
+      "sourceFile": "assets/icons/svg/icon_leaderboard.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "83156f2cb979233519e6c718cc97bab88b078e2e885131324f0127d7d39a23e1"
+    },
+    {
+      "name": "icon_leaderboard_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_leaderboard.png",
+      "sourceFile": "assets/icons/svg/icon_leaderboard.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "18087d5a102efce9761e1bbe501370eaff83758f96c336c0d2984815af6b2ee8"
+    },
+    {
+      "name": "icon_lock",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_lock.png",
+      "sourceFile": "assets/icons/svg/icon_lock.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "7ac3bb972ad84d14f0573bf0ab8d927a867fa81f3470f3bc28eac5f3f61e512d"
+    },
+    {
+      "name": "icon_lock_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_lock.png",
+      "sourceFile": "assets/icons/svg/icon_lock.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "a94728ae9ca630a1e37696a828aa810be2f987cf6eefa7f2018c4c71afe2b3a3"
+    },
+    {
+      "name": "icon_part",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_part.png",
+      "sourceFile": "assets/icons/svg/icon_part.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "b3c735eabaead7171d0b1ca07e5f0eb2557f2deebf73caf51ff74ed6b9223c7f"
+    },
+    {
+      "name": "icon_part_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_part.png",
+      "sourceFile": "assets/icons/svg/icon_part.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "6cf20a756a7b7d2e7a64ba3892ca76321ad2eaafb4487e65ccf8131e5e1c3264"
+    },
+    {
+      "name": "icon_rebirth",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_rebirth.png",
+      "sourceFile": "assets/icons/svg/icon_rebirth.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "6d4bacd9078dfbaba2e18787e89874a80925cdc1feab62816387b80eaf7ade33"
+    },
+    {
+      "name": "icon_rebirth_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_rebirth.png",
+      "sourceFile": "assets/icons/svg/icon_rebirth.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "1da723edb31e149b1485a0c53a03ca81d4c2aa2070f864ffeffd85dcda94b589"
+    },
+    {
+      "name": "icon_settings",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_settings.png",
+      "sourceFile": "assets/icons/svg/icon_settings.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "d586f2a7ff501b23381b8c280593e3b319d495bd9aa91af09fcd1e75f3d2c973"
+    },
+    {
+      "name": "icon_settings_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_settings.png",
+      "sourceFile": "assets/icons/svg/icon_settings.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "3c08dcc4ec5876723c8f9f9fe6afe40c48884eaf43f16be3e8a73e2d3dce9bf4"
+    },
+    {
+      "name": "icon_shop",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_shop.png",
+      "sourceFile": "assets/icons/svg/icon_shop.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "dacfe93aa7e16e63b84c0c5f290e3bff7ed38dde3d7f36eb09f7b622058a26c4"
+    },
+    {
+      "name": "icon_shop_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_shop.png",
+      "sourceFile": "assets/icons/svg/icon_shop.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "40d9bafe67c966bb5cdef7c7baf2b3f39751ee47a3ece61e056d9e1daecb95d4"
+    },
+    {
+      "name": "icon_star",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_star.png",
+      "sourceFile": "assets/icons/svg/icon_star.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "e7fe4b2db6f78f755422f117c58dccf9c5b707198eb992e8d3255afe72dedb70"
+    },
+    {
+      "name": "icon_star_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_star.png",
+      "sourceFile": "assets/icons/svg/icon_star.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "0cd45bedc863e2185f9b9bbf1127acc80f5d9de58b39c053c9dbc2971ac31994"
+    },
+    {
+      "name": "icon_star_empty",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_star_empty.png",
+      "sourceFile": "assets/icons/svg/icon_star_empty.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "6360739bf4caf54042bb02580cb8117cc98eb6e79d32d019e1ddc2207d4121b1"
+    },
+    {
+      "name": "icon_star_empty_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_star_empty.png",
+      "sourceFile": "assets/icons/svg/icon_star_empty.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "432a8d84657a3a69aa1a0f923353c0883c69215964b14863115257ab12183236"
+    },
+    {
+      "name": "icon_warning",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_warning.png",
+      "sourceFile": "assets/icons/svg/icon_warning.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "260d01b8ef6952b2268e8cc3e06db396c7e407ed32d893dc49df473bea48a72d"
+    },
+    {
+      "name": "icon_warning_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_warning.png",
+      "sourceFile": "assets/icons/svg/icon_warning.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "0e65f771a2a450d9db4e236672ce7d481f83459e950e87f13bb769cf36a226f9"
+    },
+    {
+      "name": "icon_weight",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_weight.png",
+      "sourceFile": "assets/icons/svg/icon_weight.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "70503c16defd11b1f430f26858fe2f0564b5a0b6d6ebb45b36a3dece2d99d57e"
+    },
+    {
+      "name": "icon_weight_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_weight.png",
+      "sourceFile": "assets/icons/svg/icon_weight.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "88ed1ff00c7abadd79c427c448abe84397aeb82e8025b06b71f1c85c7b3283ae"
+    },
+    {
+      "name": "icon_wins",
+      "kind": "image",
+      "path": "assets/icons/png/256/icon_wins.png",
+      "sourceFile": "assets/icons/svg/icon_wins.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "e05d500f15bf73b9e51deb32281fcfee36d73d769346887bb48f5f29afbd112b"
+    },
+    {
+      "name": "icon_wins_64",
+      "kind": "image",
+      "path": "assets/icons/png/64/icon_wins.png",
+      "sourceFile": "assets/icons/svg/icon_wins.svg",
+      "source": "generated",
+      "status": "pending",
+      "assetId": null,
+      "sha256": "819685f5c5ca46f74f94f3db503e2a2286010c4c07075e4c62ac8e0a98624049"
+    }
+  ],
   "version": 1
 }

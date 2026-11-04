@@ -9,11 +9,11 @@
 	screen), so it is not routed through Loc.
 ]]
 
+local Assets = require("../../Assets")
 local Create = require("../Create")
 local Kit = require("../Kit")
 
 export type Env = {
-	icon: (name: string) -> string, -- resolves an icon asset name to an image id
 	overlay: () -> GuiObject, -- safe-area layer for modal/drawer content and pops
 	backdrop: () -> GuiObject, -- full-bleed layer under `overlay` for dims and scrims
 	inputMode: () -> "Touch" | "Gamepad" | "Keyboard",
@@ -74,11 +74,11 @@ local Stories: { Story } = {
 	{
 		component = "Button",
 		variants = concat(
-			variantsOf(Kit.Button.Variants, function(name, env)
+			variantsOf(Kit.Button.Variants, function(name, _env)
 				return center((Kit.Button.new({
 					Text = name,
 					Variant = name :: any,
-					Icon = if name == "Gold" then env.icon("icon_gold") else nil,
+					Icon = if name == "Gold" then "icon_star" else nil,
 				})))
 			end),
 			{
@@ -96,12 +96,12 @@ local Stories: { Story } = {
 				},
 				{
 					name = "Small + icon",
-					build = function(env)
+					build = function(_env)
 						return center((Kit.Button.new({
 							Text = "Claim",
 							Size = "Small",
 							Variant = "Success",
-							Icon = env.icon("icon_check"),
+							Icon = "icon_check",
 						})))
 					end,
 				},
@@ -112,9 +112,9 @@ local Stories: { Story } = {
 		component = "IconButton",
 		cell = { x = 140, y = 120 },
 		variants = concat(
-			variantsOf(Kit.IconButton.Variants, function(name, env)
+			variantsOf(Kit.IconButton.Variants, function(name, _env)
 				return center((Kit.IconButton.new({
-					Icon = env.icon("icon_shop"),
+					Icon = "icon_shop",
 					Label = name,
 					Variant = name :: any,
 					Badge = if name == "Secondary" then 3 else nil,
@@ -123,17 +123,15 @@ local Stories: { Story } = {
 			{
 				{
 					name = "Disabled",
-					build = function(env)
-						return center(
-							(Kit.IconButton.new({ Icon = env.icon("icon_lock"), Label = "Locked", Disabled = true }))
-						)
+					build = function(_env)
+						return center((Kit.IconButton.new({ Icon = "icon_lock", Label = "Locked", Disabled = true })))
 					end,
 				},
 				{
 					name = "Loading",
-					build = function(env)
+					build = function(_env)
 						return center((Kit.IconButton.new({
-							Icon = env.icon("icon_settings"),
+							Icon = "icon_settings",
 							Label = "Loading",
 							Loading = true,
 						})))
@@ -145,11 +143,11 @@ local Stories: { Story } = {
 	{
 		component = "Chip",
 		variants = concat(
-			variantsOf(Kit.Chip.Variants, function(name, env)
+			variantsOf(Kit.Chip.Variants, function(name, _env)
 				return center((Kit.Chip.new({
 					Text = name,
 					Variant = name :: any,
-					Icon = if name == "Warning" then env.icon("icon_warning") else nil,
+					Icon = if name == "Warning" then "icon_warning" else nil,
 				})))
 			end),
 			{
@@ -191,11 +189,11 @@ local Stories: { Story } = {
 	{
 		component = "Panel",
 		cell = { x = 400, y = 300 },
-		variants = variantsOf(Kit.Panel.Variants, function(name, env)
+		variants = variantsOf(Kit.Panel.Variants, function(name, _env)
 			local root, panel = Kit.Panel.new({
 				Title = name .. " Panel",
 				Variant = name :: any,
-				Icon = env.icon("icon_shop"),
+				Icon = "icon_shop",
 				Size = UDim2.fromOffset(380, 280),
 				OnClose = function() end,
 			})
@@ -245,7 +243,7 @@ local Stories: { Story } = {
 					Kit.ListRow.new({
 						Title = "Part " .. i,
 						Subtitle = "Steel bar · 4 studs",
-						Icon = env.icon("icon_part"),
+						Icon = "icon_part",
 						Value = tostring(i * 25),
 						LayoutOrder = i,
 						Parent = drawer.body,
@@ -309,12 +307,12 @@ local Stories: { Story } = {
 	},
 	{
 		component = "Stat",
-		variants = variantsOf(Kit.Stat.Variants, function(name, env)
+		variants = variantsOf(Kit.Stat.Variants, function(name, _env)
 			local root, stat = Kit.Stat.new({
 				Label = "Lifetime Wins",
 				Value = 120,
 				Variant = name :: any,
-				Icon = env.icon("icon_wins"),
+				Icon = "icon_wins",
 				Width = 220,
 			})
 			task.delay(0.8, function()
@@ -326,9 +324,9 @@ local Stories: { Story } = {
 	{
 		component = "CurrencyPill",
 		variants = concat(
-			variantsOf(Kit.CurrencyPill.Variants, function(name, env)
+			variantsOf(Kit.CurrencyPill.Variants, function(name, _env)
 				local root, pill = Kit.CurrencyPill.new({
-					Icon = env.icon(if name == "Gold" then "icon_gold" else "icon_wins"),
+					Icon = if name == "Gold" then "icon_star" else "icon_wins",
 					Value = 1200,
 					Variant = name :: any,
 					OnPlus = function() end,
@@ -341,18 +339,14 @@ local Stories: { Story } = {
 			{
 				{
 					name = "No plus (Height)",
-					build = function(env)
-						return center(
-							(Kit.CurrencyPill.new({ Icon = env.icon("icon_height"), Value = 51, Suffix = " st" }))
-						)
+					build = function(_env)
+						return center((Kit.CurrencyPill.new({ Icon = "icon_height", Value = 51, Suffix = " st" })))
 					end,
 				},
 				{
 					name = "Loading",
-					build = function(env)
-						return center(
-							(Kit.CurrencyPill.new({ Icon = env.icon("icon_cash"), Value = 0, Loading = true }))
-						)
+					build = function(_env)
+						return center((Kit.CurrencyPill.new({ Icon = "icon_cash", Value = 0, Loading = true })))
 					end,
 				},
 			}
@@ -361,13 +355,13 @@ local Stories: { Story } = {
 	{
 		component = "ListRow",
 		cell = { x = 380, y = 110 },
-		variants = variantsOf(Kit.ListRow.Variants, function(name, env)
+		variants = variantsOf(Kit.ListRow.Variants, function(name, _env)
 			local ranks = { Default = 7, Pinned = 214, Gold = 1, Silver = 2, Bronze = 3 }
 			local root = Kit.ListRow.new({
 				Title = if name == "Pinned" then "You" else "Player" .. ranks[name],
 				Subtitle = "51.0 studs",
 				Rank = ranks[name],
-				Icon = env.icon("icon_height"),
+				Icon = "icon_height",
 				Value = "1.2K",
 				Variant = name :: any,
 			})
@@ -378,7 +372,7 @@ local Stories: { Story } = {
 	{
 		component = "Grid",
 		cell = { x = 400, y = 260 },
-		variants = variantsOf(Kit.Grid.Variants, function(name, env)
+		variants = variantsOf(Kit.Grid.Variants, function(name, _env)
 			return frame(function(f)
 				local root, grid = Kit.Grid.new({
 					Variant = name :: any,
@@ -390,13 +384,13 @@ local Stories: { Story } = {
 				for i, iconName in icons do
 					local card, cardHandle =
 						Kit.Card.new({ Variant = if i == 1 then "Accent" else "Elevated", LayoutOrder = i })
-					Create.new("ImageLabel", {
+					local image = Create.new("ImageLabel", {
 						BackgroundTransparency = 1,
-						Image = env.icon(iconName),
 						Size = UDim2.fromScale(1, 1),
 						ScaleType = Enum.ScaleType.Fit,
 						Parent = cardHandle.content,
 					})
+					Assets.applyImage(image :: ImageLabel, iconName)
 					card.Parent = grid.content
 				end
 				center(root).Parent = f
@@ -413,20 +407,20 @@ local Stories: { Story } = {
 	{
 		component = "Toast",
 		cell = { x = 380, y = 110 },
-		variants = variantsOf(Kit.Toast.Variants, function(name, env)
+		variants = variantsOf(Kit.Toast.Variants, function(name, _env)
 			local icon = ({
 				Success = "icon_check",
 				Danger = "icon_warning",
 				Info = "icon_codes",
 				Warning = "icon_warning",
-				Gold = "icon_gold",
+				Gold = "icon_star",
 				Badge = "icon_star",
 			} :: { [string]: string })[name]
 			local card = Kit.Toast.build({
 				Title = if name == "Badge" then "Badge earned!" else nil,
 				Text = if name == "Badge" then "First Steps" else name .. " toast",
 				Variant = name :: any,
-				Icon = env.icon(icon),
+				Icon = icon,
 			})
 			card.Size = UDim2.fromOffset(340, card.Size.Y.Offset + (if name == "Badge" then 12 else 0))
 			return center(card)
@@ -435,11 +429,11 @@ local Stories: { Story } = {
 	{
 		component = "Banner",
 		cell = { x = 420, y = 100 },
-		variants = variantsOf(Kit.Banner.Variants, function(name, env)
+		variants = variantsOf(Kit.Banner.Variants, function(name, _env)
 			return center(Kit.Banner.build({
 				Text = if name == "Warning" then "FLASH FLOOD IN 10s!" else name:upper() .. " ANNOUNCEMENT",
 				Variant = name :: any,
-				Icon = env.icon("icon_event"),
+				Icon = "icon_event",
 			}))
 		end),
 	},

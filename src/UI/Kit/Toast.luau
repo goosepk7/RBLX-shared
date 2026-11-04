@@ -5,9 +5,10 @@
 	slide/pop in, and auto-dismiss.
 
 		local lane = Kit.Toast.lane(screenGui) -- SafeArea creates one for you
-		lane.show({ Text = Loc.t("codes.ok"), Variant = "Success", Icon = Assets.get("icon_check") })
+		lane.show({ Text = Loc.t("codes.ok"), Variant = "Success", Icon = "icon_check" })
 ]]
 
+local Common = require("./Common")
 local Create = require("../Create")
 local Hooks = require("../Hooks")
 local Motion = require("../Motion")
@@ -85,11 +86,8 @@ function Toast.build(props: Props): Frame
 		Parent = face,
 	}, { Create.pill(), Create.stroke(accent[2], 2) })
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(32, 32),

@@ -57,11 +57,8 @@ function Stat.new(props: Props): (Frame, Handle)
 	Common.applyBase(root, props, "Stat")
 
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromOffset(Tokens.size.iconLg, Tokens.size.iconLg),
 			LayoutOrder = 1,
 			Parent = root,

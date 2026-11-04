@@ -103,11 +103,8 @@ function Chip.new(props: Props): (Frame, Handle)
 	})
 
 	if props.Icon then
-		Create.new("ImageLabel", {
+		Common.icon(props.Icon :: string, {
 			Name = "Icon",
-			BackgroundTransparency = 1,
-			Image = props.Icon,
-			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromOffset(Tokens.size.iconSm, Tokens.size.iconSm),
 			LayoutOrder = 1,
 			ZIndex = 3,

@@ -7,7 +7,6 @@
 	Client bootstrap:
 		local UI = RBLXShared.UI
 		UI.Gallery.bindChatCommand({
-			icon = function(name) return Assets.get(name) end,
 			allowedUserIds = Config.Admins, -- Studio always allowed
 		})
 	Then type /uigallery in chat.
@@ -21,7 +20,6 @@ local Theme = require("./Theme")
 local Tokens = require("./Tokens")
 
 export type Options = {
-	icon: ((name: string) -> string)?,
 	parent: Instance?,
 	allowedUserIds: { number }?,
 }
@@ -34,10 +32,6 @@ Gallery.COMMAND = "/uigallery"
 local DEFAULT_CELL = { x = 260, y = 150 }
 
 local mounted: ScreenGui? = nil
-
-local function fallbackIcon(_name: string): string
-	return ""
-end
 
 local function buildSection(story: Stories.Story, env: Stories.Env, order: number): Frame
 	local cell = story.cell or DEFAULT_CELL
@@ -143,7 +137,6 @@ function Gallery.mount(opts: Options?): ScreenGui
 	end)
 
 	local env: Stories.Env = {
-		icon = o.icon or fallbackIcon,
 		overlay = function()
 			return overlay
 		end,
